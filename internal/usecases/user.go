@@ -19,8 +19,9 @@ type UserUsercasesMethods interface {
 
 
 type UserUsecase struct {
-	repo UserUsercasesMethods
+	repo *repository.UserRepo
 	conn *pgx.Conn
+	AccountUsecase
 }
 
 /* 
@@ -32,11 +33,14 @@ func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn) *Accou
 }
 */
 
-func NewUserUseCase (repo *repository.UserRepo, conn *pgx.Conn) {
+func NewUserUseCase (reposi *repository.UserRepo, conn *pgx.Conn) *UserUsecase{
 	return &UserUsecase{
-		repo: 
+		repo: reposi,
+		conn: conn,
 	}
 }
+
+
 func (a *UserUsecase) CreateUser(user* domain.User, conn *pgx.Conn) error {
     err := repository.NewUserRepo(conn).CreateUser(user)
 	if(err != nil){
@@ -69,7 +73,7 @@ func (a *UserUsecase)  GetAll(conn *pgx.Conn) ([]domain.User, error) {
 
 func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgx.Conn) error {
 	// check if minBalance violated
-	account , err:= AccountUserCaseMethods.GetByAccountNo(user.AccountNo , conn)
+	account , err := a.AccountUsecase.GetByAccountNo(user.AccountNo, a.conn)
 	if account.Balance - amount < account.MinBalance {
 		fmt.Println("Cannot Withdraw the given amount as your minimum Balance has to be : ", account.MinBalance)
 		return nil //Custom Error possible ??

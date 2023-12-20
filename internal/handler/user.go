@@ -43,11 +43,22 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 	respondWithJSON(w, http.StatusOK, user)
 }
 
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request){
+
+	users, err := h.UseCase.GetAll(h.conn)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return 
+	}
+
+	respondWithJSON(w, http.StatusOK, users)
+}
 
 
 func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
 	// get ID from url parameters
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "userid")
 	id, err := strconv.Atoi(idStr)
 
 	if err != nil {
@@ -66,8 +77,9 @@ func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
 }
 
 // withdraw money
+// localhost:3000/
 func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
-	
+
 }
 
 

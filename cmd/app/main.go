@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"rest1/internal/handler"
 	"rest1/internal/repository"
+	"rest1/internal/usecases"
 
 	// "rest1/internal/domain"
 	// "rest1/internal/repository"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -43,19 +44,25 @@ func main() {
 	// func NewAccountRepo(conn *pgx.Conn)
 	userRepo := repository.NewUserRepo(conn)
 	accountRepo := repository.NewAccountRepo(conn)
-	
+	userUseCase := usecases.NewUserUseCase(userRepo , conn)
+	accountUseCase := usecases.NewAccountUseCase(accountRepo , conn)
+	userHandler := handler.NewUserHandler(userUseCase, conn)
+	accountHandler := handler.NewAccountHandler(accountUseCase , conn)
 
 	// Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("welcome"))
 	})
-	r.Get("/employees", employeeHandler.GetEmployees)
-	r.Get("/employees/{id}", employeeHandler.GetEmployeeByID)
-	r.Post("/employees", employeeHandler.CreateEmployee)
-	r.Put("/employees/{id}", employeeHandler.UpdateEmployee)
-	r.Delete("/employees/{id}", employeeHandler.DeleteEmployee)
+	r.Post("/user/register", userHandler.Register)
+	r.Get("/user/{userid}" , userHandler.GetAccountById)
+	r.Get("/users", userHandler.GetAllUsers)
+	
+	r.Post("/{userid}/account/create" , accountHandler.CreateAccountHandler)
+	r.Get("/account/{accoundId}", accountHandler.GetByAccountNoHandler)
 
-	http.ListenAndServe(":8080", r)
+
+
+	http.ListenAndServe(":8000", r)
 	// user1  := repository.NewUserRepo(conn)
 	// user1.CreateTable()
 	// _1 , err1 := conn.Exec(context.Background() , "CREATE TABLE users (id INT GENERATED ALWAYS AS IDENTITY, accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")

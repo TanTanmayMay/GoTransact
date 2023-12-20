@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log"
 	"rest1/internal/domain"
 
 	"github.com/jackc/pgx/v5"

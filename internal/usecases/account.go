@@ -12,18 +12,26 @@ import (
 
 type AccountUserCaseMethods interface {
 	CreateAccount(accountID int , conn *pgx.Conn) error
-    GetByAccountNo(accountNo int ,int, conn *pgx.Conn) (* domain.Account , error)
+    GetByAccountNo(accountNo int , conn *pgx.Conn) (* domain.Account , error)
 	GetAllAccounts(conn *pgx.Conn) ([]domain.Account , error)	//[]domain.Account
 }
 
 type AccountUsecase struct {
-	methods AccountUserCaseMethods
+	repo *repository.AccountRepo 
+	conn *pgx.Conn
 }
 
+func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn) *AccountUsecase{
+	return &AccountUsecase{
+		repo: reposi,
+		conn: conn,
+	}
+}
 func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
 	var newAccount domain.Account
 	rand.Seed(time.Now().UnixNano())
 	randomNumber := rand.Intn(500)
+
 	newAccount.AccountNo = userID + randomNumber
 	newAccount.Balance = 0
 	newAccount.MinBalance = 500
