@@ -18,8 +18,8 @@ func NewUserRepo(conn *pgx.Conn) *UserRepo {
 	return &UserRepo{conn: conn}
 }
 
-func (u *UserRepo) GetAll() ([]domain.User, error) {
-	rows, err := u.conn.Query(context.Background(), "SELECT id, name, accountNo, password FROM users")
+func (u *UserRepo) GetAll(conn *pgx.Conn) ([]domain.User, error) {
+	rows, err := conn.Query(context.Background(), "SELECT id, name, accountNo, password FROM users")
 	if err != nil {
 		return nil, err
 	}

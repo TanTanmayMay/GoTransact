@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"rest1/internal/repository"
 
 	"github.com/jackc/pgx/v4"
@@ -44,23 +43,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	 _ , err = conn.Exec(context.Background() , "CREATE TABLE users (id serial PRIMARY KEY,name VARCHAR ( 50 ) UNIQUE NOT NULL,password VARCHAR ( 50 ) NOT NULL,accountNo INT);")
-	 err = conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4)", 124, "Om", 123 , "123").Scan("123")
+	//  _ , err = conn.Exec(context.Background() , "CREATE TABLE users (id INT PRIMARY KEY,name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL,accountNo INT);")
+	//  if err != nil{
+	// 	fmt.Println(err)
+	//  }
+	 var id int
+	 err = conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4) RETURNING id", 125, "Nishant", 123 , "123").Scan(&id)
 	if(err != nil) {
 		fmt.Println(err)
-
 	}
 	fmt.Println("PostgreSQL version:", version)
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		users, err := repository.NewUserRepo(conn).GetAll()
+	users, err := repository.NewUserRepo(conn).GetAll(conn)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error getting users: %s", err), http.StatusInternalServerError)
+			fmt.Println(err)
 			return
 		}
 
 		// Print the users to the response.
 		for _, user := range users {
-			fmt.Fprintf(w, "ID: %s, Name: %s, AccountNo: %s, Password: %s\n", user.ID, user.Name, user.AccountNo, user.Password)
+			fmt.Printf("ID: %d, Name: %s, AccountNo: %d, Password: %s\n", user.ID, user.Name, user.AccountNo, user.Password)
 		}
-	})
+	
 }
