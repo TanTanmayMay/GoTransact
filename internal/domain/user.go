@@ -11,9 +11,10 @@ type User struct {
 
 
 type UserMethods interface {
-	GetAll(conn *pgx.Conn) ([]User, error)
+	GetAll() ([]User, error)
 	GetByID(id int) (*User, error)
 	Create(user *User) (*Account , error)
 	Withdraw(user* User) (error)
 	Deposit(user *User) error
+	CreateTable() error
 }

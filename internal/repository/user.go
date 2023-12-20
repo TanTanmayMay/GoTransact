@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"rest1/internal/domain"
-
+	"fmt"
 	"github.com/jackc/pgx/v4"
 	// type UserRepository struct {
 	// 	Storage *[]domain.User
@@ -18,6 +18,13 @@ func NewUserRepo(conn *pgx.Conn) *UserRepo {
 	return &UserRepo{conn: conn}
 }
 
+func (u *UserRepo) CreateTable() error {
+	_ , err := u.conn.Exec(context.Background() , "CREATE TABLE users (id INT PRIMARY KEY,name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL,accountNo INT);")
+	if err != nil{
+		fmt.Println(err)
+	}
+	return nil
+}
 func (u *UserRepo) GetAll(conn *pgx.Conn) ([]domain.User, error) {
 	rows, err := conn.Query(context.Background(), "SELECT id, name, accountNo, password FROM users")
 	if err != nil {
@@ -50,15 +57,12 @@ func (u *UserRepo) GetByID(id string) (*domain.User, error) {
 }
 
 func (u *UserRepo) Create(user *domain.User) (*domain.User, error) {
-	err := u.conn.QueryRow(context.Background(),
-		"INSERT INTO users(name, accountNo, password) VALUES($1, $2, $3) RETURNING id",
-		user.Name, user.AccountNo, user.Password).Scan(&user.ID)
-
-	if err != nil {
-		return nil, err
+	var id int
+	err := u.conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4) RETURNING id", 125, "Nishant", 123 , "123").Scan(&id)
+	if(err != nil) {
+		fmt.Println(err)
 	}
-
-	return user, nil
+	return user , nil
 }
 
 func (u *UserRepo) Withdraw(user *domain.User) error {
