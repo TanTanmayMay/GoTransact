@@ -1,7 +1,5 @@
 package domain
 
-import "github.com/jackc/pgx/v4"
-
 type User struct {
 	ID			int 		`json:"id"` //pri
 	Name 		string 		`json:"name"`
@@ -13,8 +11,8 @@ type User struct {
 type UserMethods interface {
 	GetAll() ([]User, error)
 	GetByID(id int) (*User, error)
-	Create(user *User) (*Account , error)
-	Withdraw(user* User) (error)
-	Deposit(user *User) error
+	CreateUser(user *User) error
+	Withdraw(user* User, amount int) (error)
+	Deposit(user *User, amount int) error
 	CreateTable() error
 }

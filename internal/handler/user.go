@@ -1,52 +1,79 @@
-package user
-import(
-	"context"
-	"fmt"
-	"github.com/jackc/pgx/v4"
-	"log"
+package handler
+
+import (
+	"encoding/json"
 	"net/http"
-	"os"
-	// "rest1/internal/repository"
+	"rest1/internal/domain"
+	"rest1/internal/usecases"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 )
-var db *pgx.Conn
 
-func init() {
-	// Establish a connection to the PostgreSQL database.
-	connString := "user=your_username password=your_password host=localhost port=5432 dbname=your_database sslmode=disable"
-	var err error
-	db, err = pgx.Connect(context.Background(), connString)
-	if err != nil {
-		log.Fatal("Error connecting to PostgreSQL:", err)
-	}
 
-	// Close the database connection when the application exits.
-	defer db.Close()
+type UserHandler struct {
+	UseCase *usecases.UserUsecase
+	conn *pgx.Conn
 }
 
-func main() {
-	// Initialize a user repository with the PostgreSQL connection.
-	userRepo := repository.NewUserRepo(db)
+func NewUserHandler(useCase *usecases.UserUsecase , conn *pgx.Conn) *UserHandler{
+	return &UserHandler{
+		UseCase: useCase,
+		conn: conn,
+	}
+}
 
-	// Handle HTTP requests.
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		users, err := userRepo.GetAll()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error getting users: %s", err), http.StatusInternalServerError)
-			return
-		}
 
-		// Print the users to the response.
-		for _, user := range users {
-			fmt.Fprintf(w, "ID: %s, Name: %s, AccountNo: %s, Password: %s\n", user.ID, user.Name, user.AccountNo, user.Password)
-		}
-	})
+// Create User route
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
+	var user domain.User
 
-	// Start the HTTP server.
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	// check if user from req.body is valid
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return 
 	}
 
-	log.Printf("Server listening on :%s...\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	err = h.UseCase.CreateUser(&user, h.conn)
+
+	
+	respondWithJSON(w, http.StatusOK, user)
+}
+
+
+
+func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
+	// get ID from url parameters
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return 
+	}
+
+
+	user, err := h.UseCase.GetAccountByID(id, h.conn)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+
+	respondWithJSON(w, http.StatusOK, user)
+}
+
+// withdraw money
+func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
+	
+}
+
+
+// Utitlity function to response in JSON
+func respondWithJSON(w http.ResponseWriter, statusCode int, data interface{}){
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
 }

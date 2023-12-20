@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"rest1/internal/repository"
 
 	// "rest1/internal/domain"
 	// "rest1/internal/repository"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
 )
 
 func main() {
-	// Replace these values with your PostgreSQL details
-	username := "nishant"
+	username := "nishant" // os.Env
 	password := "nishant"
 	host := "db"
 	port := "5432"
@@ -32,9 +35,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println("Connected to PostgreSQL!")
 
+	r := chi.NewRouter()
+
+	// Initialize UseCase and Handler
+	// func NewAccountRepo(conn *pgx.Conn)
+	userRepo := repository.NewUserRepo(conn)
+	accountRepo := repository.NewAccountRepo(conn)
+	
+
+	// Routes
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("welcome"))
+	})
+	r.Get("/employees", employeeHandler.GetEmployees)
+	r.Get("/employees/{id}", employeeHandler.GetEmployeeByID)
+	r.Post("/employees", employeeHandler.CreateEmployee)
+	r.Put("/employees/{id}", employeeHandler.UpdateEmployee)
+	r.Delete("/employees/{id}", employeeHandler.DeleteEmployee)
+
+	http.ListenAndServe(":8080", r)
+	// user1  := repository.NewUserRepo(conn)
+	// user1.CreateTable()
+	// _1 , err1 := conn.Exec(context.Background() , "CREATE TABLE users (id INT GENERATED ALWAYS AS IDENTITY, accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")
+	// if(err1 != nil){
+	// 	fmt.Println(err1)
+	// 	fmt.Println(_1)
+
+	// }
 	// Perform database operations here...
 
 	// Example: Querying the version of the PostgreSQL server
@@ -52,8 +81,9 @@ func main() {
 	// user.AccountNo = 123
 	// user.Name = "NMMMM"
 	// user.Password = "abcd"
-	// user , err = repository.NewUserRepo(conn).Create(user)
-	// fmt.Println("PostgreSQL version:", version)
+	// user1  := repository.NewUserRepo(conn)
+	// user1.Create(&user)
+	// // fmt.Println("PostgreSQL version:", version)
 	// users, err := repository.NewUserRepo(conn).GetAll(conn)
 	// 	if err != nil {
 	// 		fmt.Println(err)
