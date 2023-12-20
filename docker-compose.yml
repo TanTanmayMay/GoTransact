@@ -27,7 +27,7 @@ services:
     working_dir: /go/src/rest1
     command: air -c ./air.toml
     ports:
-      - "8080:3000"
+      - "8081:3000"
     volumes:
       - ./:/go/src/rest1
 

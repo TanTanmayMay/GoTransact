@@ -1,4 +1,4 @@
-module github.com/nishant
+module rest1
 
 go 1.18
 

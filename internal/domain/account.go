@@ -11,7 +11,5 @@ type Account struct {
 type AccountMethods interface {
 	GetByNo(id int) (*User, error)
 	Create(use *User) error
-	Withdraw(user *User) error
-	Deposit(user *User) error
 
 }

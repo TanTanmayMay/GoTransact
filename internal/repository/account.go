@@ -1,9 +1,12 @@
-package account
+package repository
 
-import(
-	""
-)
+// import (
+// 	"rest1/internal/domain"
 
-type EmployeeRepository struct {
-	Storage *[]domain.User
-}
+// )
+
+// type AccountRepository struct { //pg connection
+// 	Storage *[]domain.Account
+// }
+
+

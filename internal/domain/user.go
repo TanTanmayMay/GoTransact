@@ -1,9 +1,9 @@
 package domain
 
 type User struct {
-	ID			string 		`json:"id"`
+	ID			string 		`json:"id"` //pri
 	Name 		string 		`json:"name"`
-	AccountNo	string 		`json:"accountNo"`
+	AccountNo	string 		`json:"accountNo"` //foreign key
 	Password 	string 		`json:"password"`
 }
 
@@ -11,6 +11,7 @@ type User struct {
 type UserMethods interface {
 	GetAll() ([]User, error)
 	GetByID(id int) (*User, error)
-	Create(user *User) error
-	Update(user *User) error
+	Create(user *User) (*Account , error)
+	Withdraw(user* User) (error)
+	Deposit(user *User) error
 }

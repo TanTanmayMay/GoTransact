@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v4"
 	"log"
+	"net/http"
+	"rest1/internal/repository"
+
+	"github.com/jackc/pgx/v4"
 )
 
 func main() {
@@ -41,6 +44,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	 _ , err = conn.Exec(context.Background() , "CREATE TABLE users (id serial PRIMARY KEY,name VARCHAR ( 50 ) UNIQUE NOT NULL,password VARCHAR ( 50 ) NOT NULL,accountNo INT);")
+	 err = conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4)", 124, "Om", 123 , "123").Scan("123")
+	if(err != nil) {
+		fmt.Println(err)
 
+	}
 	fmt.Println("PostgreSQL version:", version)
+	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		users, err := repository.NewUserRepo(conn).GetAll()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error getting users: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Print the users to the response.
+		for _, user := range users {
+			fmt.Fprintf(w, "ID: %s, Name: %s, AccountNo: %s, Password: %s\n", user.ID, user.Name, user.AccountNo, user.Password)
+		}
+	})
 }
