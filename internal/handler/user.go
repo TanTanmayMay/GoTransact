@@ -101,7 +101,7 @@ func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
 // withdraw money
 // localhost:3000/
 func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
-
+	
 }
 
 

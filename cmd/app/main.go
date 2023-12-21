@@ -74,7 +74,7 @@ func main() {
 
 	
 	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
-	r.Post("/{userid}/account/create" , accountHandler.CreateAccountHandler)
+	r.Post("/account/create/{userid}" , accountHandler.CreateAccountHandler)
 	r.Get("/account/{accoundId}", accountHandler.GetByAccountNoHandler)
 
 

@@ -49,6 +49,9 @@ func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Req
 
 	_, err = h.UseCase.CreateAccount(userId, h.conn)
 	
+	if err != nil{
+		respondWithJSON(w, http.StatusBadRequest, err)
+	}
 	respondWithJSON(w, http.StatusOK, account)
 }
 
