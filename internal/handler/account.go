@@ -41,8 +41,7 @@ func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Req
 		return 
 	}
 
-	err = h.UseCase.CreateAccount(userId, h.conn)
-
+	_, err = h.UseCase.CreateAccount(userId, h.conn)
 	
 	respondWithJSON(w, http.StatusOK, account)
 }

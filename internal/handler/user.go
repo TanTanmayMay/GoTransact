@@ -6,7 +6,6 @@ import (
 	"rest1/internal/domain"
 	"rest1/internal/usecases"
 	"strconv"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
@@ -43,6 +42,18 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 		} else {
 			fmt.Println("Not a Valid JSON")
 		}
+
+
+		// Decode JSON data from the request body
+		var requestData YourStruct
+		err := json.NewDecoder(r.Body).Decode(&requestData)
+		if err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		// Now, 'requestData' contains the mapped struct values
+		fmt.Printf("Field1: %s, Field2: %d\n", requestData.Field1, requestData.Field2)
 	*/
 
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -51,21 +62,21 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.logger.Error("Invalid Data to create User", zap.Error(err))
-
 		return 
 	}
 
-	defer r.Body.Close()
-	// isValid := json.Valid()
-
-	
-
+	newAccId, err := h.UseCase.CreateAccount(user.ID, h.conn)
+	if err != nil {
+		h.logger.Error("Error while creating account by user.go handler", zap.Error(err))
+		return 
+	}
+	user.AccountNo = newAccId
 	err = h.UseCase.CreateUser(&user, h.conn)
 	if err != nil {
 		h.logger.Error("Error in creating user at Handler Layer" , zap.Error(err))
 		return 
 	}
-	
+	// fmt.Println("no use", idd)
 	respondWithJSON(w, http.StatusOK, user)
 }
 

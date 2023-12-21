@@ -12,7 +12,7 @@ import (
 )
 
 type AccountUserCaseMethods interface {
-	CreateAccount(accountID int , conn *pgx.Conn) error
+	CreateAccount(userId int , conn *pgx.Conn) (int, error)
     GetByAccountNo(accountNo int , conn *pgx.Conn) (* domain.Account , error)
 	GetAllAccounts(conn *pgx.Conn) ([]domain.Account , error)	//[]domain.Account
 }
@@ -30,7 +30,7 @@ func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn , logger 
 		logger: logger,
 	}
 }
-func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
+func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) (int, error) {
 	var newAccount domain.Account
 	rand.Seed(time.Now().UnixNano())
 	randomNumber := rand.Intn(500)
@@ -38,16 +38,18 @@ func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
 	newAccount.AccountNo = userID + randomNumber
 	newAccount.Balance = 0
 	newAccount.MinBalance = 500
-	err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
+	//err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
+	id, err := a.repo.CreateAccount(&newAccount)
 	if err != nil {
 		log.Fatal(err)
-		return err
+		return 0, err
 	}
-	return nil
+	return id, nil
 }
 
 func (a *AccountUsecase) GetByAccountNo(accountNo int , conn* pgx.Conn) (* domain.Account , error) {
-	account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
+	//account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
+	account, err := a.repo.GetByNo(accountNo)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -56,7 +58,8 @@ func (a *AccountUsecase) GetByAccountNo(accountNo int , conn* pgx.Conn) (* domai
 }
 
 func (a * AccountUsecase) GetAllAccounts(conn *pgx.Conn) ([] domain.Account , error){
-	accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
+	//accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
+	accounts, err := a.repo.GetAll()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err

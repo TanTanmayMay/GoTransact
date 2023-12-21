@@ -79,6 +79,10 @@ func main() {
 
 	logger.Info("Server listening on :8000")
 	http.ListenAndServe(":8000", r)
+
+
+
+	
 	// user1  := repository.NewUserRepo(conn)
 	// user1.CreateTable()
 	// _1 , err1 := conn.Exec(context.Background() , "CREATE TABLE users (id INT GENERATED ALWAYS AS IDENTITY, accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")

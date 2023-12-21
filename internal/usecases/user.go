@@ -46,7 +46,8 @@ func NewUserUseCase (reposi *repository.UserRepo, conn *pgx.Conn , logger *zap.L
 
 
 func (a *UserUsecase) CreateUser(user* domain.User, conn *pgx.Conn) error {
-    err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
+    //err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
+	err := a.repo.CreateUser(user)
 	if err != nil {
         a.logger.Error("Failed to create user", zap.Error(err))
         return err
@@ -56,7 +57,8 @@ func (a *UserUsecase) CreateUser(user* domain.User, conn *pgx.Conn) error {
 }
 
 func (a *UserUsecase) GetAccountByID(id int, conn* pgx.Conn ) (*domain.User ,error) {
-	user, err := repository.NewUserRepo(conn , a.logger).GetByID(id)
+	//user, err := repository.NewUserRepo(conn , a.logger).GetByID(id)
+	user, err := a.repo.GetByID(id)
 	if(err != nil){
 		a.logger.Error("Error performing user operation get account by id", zap.Error(err))
 		return nil, err
@@ -66,7 +68,8 @@ func (a *UserUsecase) GetAccountByID(id int, conn* pgx.Conn ) (*domain.User ,err
 
 func (a *UserUsecase)  GetAll(conn *pgx.Conn) ([]domain.User, error) {
 	// var userList []domain.User
-	userList, err := repository.NewUserRepo(conn , a.logger).GetAll()
+	//userList, err := repository.NewUserRepo(conn , a.logger).GetAll()
+	userList, err := a.repo.GetAll()
 	if err != nil {
 		a.logger.Error("Error performing user operation get all accounts", zap.Error(err))
 		return nil, err
@@ -78,12 +81,14 @@ func (a *UserUsecase)  GetAll(conn *pgx.Conn) ([]domain.User, error) {
 func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgx.Conn) error {
 	// check if minBalance violated
 	account , err := a.AccountUsecase.GetByAccountNo(user.AccountNo, a.conn)
+	// account, err := a.repo.GetByAccountNo(user.AccountNo)
 	if account.Balance - amount < account.MinBalance {
 		a.logger.Error("Error performing user operation get withdrawal due to min balance violation", zap.Error(err))
 		return nil //Custom Error possible ??
 
 	} 
-	err = repository.NewUserRepo(conn , a.logger).Withdraw(user, amount)
+	//err = repository.NewUserRepo(conn , a.logger).Withdraw(user, amount)
+	err = a.repo.Withdraw(user, amount)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -92,7 +97,8 @@ func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgx.Conn) er
 }
 
 func (a *UserUsecase) Deposit(user *domain.User, amount int, conn *pgx.Conn) error {
-	err := repository.NewUserRepo(conn , a.logger).Deposit(user , amount);
+	//err := repository.NewUserRepo(conn , a.logger).Deposit(user , amount);
+	err := a.repo.Deposit(user, amount)
 	if err != nil {
 		a.logger.Error("Error performing user operation desposit " , zap.Error(err))
 		return err

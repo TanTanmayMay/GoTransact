@@ -30,7 +30,7 @@ func (u *UserRepo) CreateTable() error {
 		}
 		count++
 	}
-	_ , err := u.conn.Exec(context.Background() , "CREATE TABLE users (id INT GENERATED ALWAYS AS IDENTITY, accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")
+	_ , err := u.conn.Exec(context.Background() , "CREATE TABLE users (id INT , accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")
 	if err != nil{
 		fmt.Println(err)
 	}
@@ -72,11 +72,12 @@ func (u *UserRepo) GetByID(id int) (*domain.User, error) {
 }
 
 func (u *UserRepo) CreateUser(user *domain.User) error {
-	var id int
-	err := u.conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4) RETURNING id", user.ID , user.Name , user.AccountNo , user.Password).Scan(&id)
+	// var id int
+	_, err := u.conn.Exec(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4)", user.ID , user.Name , user.AccountNo , user.Password)
 	if(err != nil) {
 		u.logger.Error("Failed to create user in Database", zap.Error(err))
 	}
+	fmt.Println("Added User to Database!!")
 	return nil
 }
 

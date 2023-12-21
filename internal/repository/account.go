@@ -42,13 +42,14 @@ func (a *AccountRepo) GetByNo(accountNo int) (*domain.Account, error) {
 	return &account, nil
 }
 
-func (a *AccountRepo) CreateAccount(account *domain.Account) error {
-	_, err := a.conn.Exec(context.Background(), "INSERT INTO accounts(accountNo, balance, minBalance) VALUES($1, $2, $3)", account.AccountNo, account.Balance, account.MinBalance)
+func (a *AccountRepo) CreateAccount(account *domain.Account) (int ,error) {
+	var accId int
+	err := a.conn.QueryRow(context.Background(), "INSERT INTO accounts(accountNo, balance, minBalance) VALUES($1, $2, $3)", account.AccountNo, account.Balance, account.MinBalance).Scan(&accId)
 	if err != nil {
 		a.logger.Error("Failed to create account in Database", zap.Error(err))
 		fmt.Println(err)
 	}
-	return nil
+	return accId, nil
 }
 
 func (a *AccountRepo) GetAll() ([]domain.Account, error) {
