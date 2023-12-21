@@ -1,17 +1,17 @@
 package usecases
 
 import (
+	"fmt"
 	"log"
-	"math/rand"
 	"rest1/internal/domain"
 	"rest1/internal/repository"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
 type AccountUserCaseMethods interface {
+	CreateAccountTable() error
 	CreateAccount(userId int , conn *pgx.Conn) (int, error)
     GetByAccountNo(accountNo int , conn *pgx.Conn) (* domain.Account , error)
 	GetAllAccounts(conn *pgx.Conn) ([]domain.Account , error)	//[]domain.Account
@@ -30,12 +30,22 @@ func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn , logger 
 		logger: logger,
 	}
 }
+
+func (a *AccountUsecase) CreateAccountTable() error{
+	err := a.repo.CreateTable()
+	if err != nil {
+		fmt.Println("Error while creating account table")
+		return err
+	}
+
+	return nil
+}
 func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) (int, error) {
 	var newAccount domain.Account
-	rand.Seed(time.Now().UnixNano())
-	randomNumber := rand.Intn(500)
+	// rand.Seed(time.Now().UnixNano())
+	// randomNumber := rand.Intn(500)
 
-	newAccount.AccountNo = userID + randomNumber
+	newAccount.AccountNo = userID + 100
 	newAccount.Balance = 0
 	newAccount.MinBalance = 500
 	//err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)

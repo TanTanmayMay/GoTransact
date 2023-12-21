@@ -25,7 +25,15 @@ func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn, logger
 		logger: logger,
 	}
 }
+func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *http.Request){
 
+	err := h.UseCase.CreateAccountTable()
+
+	if(err != nil){
+		respondWithJSON(w, http.StatusBadRequest, err)
+	}
+	respondWithJSON(w, http.StatusOK, nil)
+}
 
 // Create Account route
 // http://localhost:3000/{userid}/account/create
@@ -36,9 +44,7 @@ func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Req
 
 	// check if user from req.body is valid
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		h.logger.Error("Failed to Create Account Handler", zap.Error(err))
-		return 
+		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 
 	_, err = h.UseCase.CreateAccount(userId, h.conn)

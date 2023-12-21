@@ -12,6 +12,7 @@ import (
 
 type UserUsercasesMethods interface {
 	// user *domain.User
+	CreateUserTable() error
 	CreateUser(user *domain.User, conn *pgx.Conn) error
     Deposit(user *domain.User, amount int, conn *pgx.Conn) error
     Withdraw(user *domain.User, amount int, conn *pgx.Conn) error
@@ -36,6 +37,8 @@ func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn) *Accou
 }
 */
 
+
+
 func NewUserUseCase (reposi *repository.UserRepo, conn *pgx.Conn , logger *zap.Logger) *UserUsecase{
 	return &UserUsecase{
 		repo: reposi,
@@ -43,13 +46,20 @@ func NewUserUseCase (reposi *repository.UserRepo, conn *pgx.Conn , logger *zap.L
 		logger: logger,
 	}
 }
+func (a *UserUsecase) CreateUserTable() error {
+	err := a.repo.CreateUserTable()
+	if err != nil {
+        a.logger.Error("Failed to create user table", zap.Error(err))
+        return err
+    }
 
+    return nil
+}
 
 func (a *UserUsecase) CreateUser(user* domain.User, conn *pgx.Conn) error {
     //err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
 	err := a.repo.CreateUser(user)
 	if err != nil {
-        a.logger.Error("Failed to create user", zap.Error(err))
         return err
     }
 

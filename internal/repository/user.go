@@ -20,18 +20,12 @@ func NewUserRepo(conn *pgx.Conn , logger *zap.Logger) *UserRepo {
 		logger:  logger,
 	}
 }
-var  count = 0
-func (u *UserRepo) CreateTable() error {
-	if count == 0 {
-		_1 , err1 := u.conn.Exec(context.Background() , "DROP TABLE users;")
-		if(err1 != nil){
-			fmt.Println(err1)
-			fmt.Println(_1)
-		}
-		count++
-	}
-	_ , err := u.conn.Exec(context.Background() , "CREATE TABLE users (id INT , accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")
+
+func (u *UserRepo) CreateUserTable() error {
+	// _ , err := u.conn.Exec(context.Background() , "DROP TABLE users;")
+	_ , err := u.conn.Exec(context.Background() , "CREATE TABLE users (id INT , accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id));")
 	if err != nil{
+		u.logger.Error("Failed to create table in Database", zap.Error(err))
 		fmt.Println(err)
 	}
 	return nil
@@ -75,7 +69,7 @@ func (u *UserRepo) CreateUser(user *domain.User) error {
 	// var id int
 	_, err := u.conn.Exec(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4)", user.ID , user.Name , user.AccountNo , user.Password)
 	if(err != nil) {
-		u.logger.Error("Failed to create user in Database", zap.Error(err))
+		return err
 	}
 	fmt.Println("Added User to Database!!")
 	return nil

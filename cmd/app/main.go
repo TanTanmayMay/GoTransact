@@ -9,8 +9,6 @@ import (
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
 	"go.uber.org/zap"
-	// "rest1/internal/domain"
-	// "rest1/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"os"
@@ -72,7 +70,10 @@ func main() {
 	r.Post("/user/register", userHandler.Register)
 	r.Get("/user/{userid}" , userHandler.GetAccountById)
 	r.Get("/users", userHandler.GetAllUsers)
+	r.Get("/create/users/table", userHandler.CreateUsersTableHandler)
+
 	
+	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
 	r.Post("/{userid}/account/create" , accountHandler.CreateAccountHandler)
 	r.Get("/account/{accoundId}", accountHandler.GetByAccountNoHandler)
 
