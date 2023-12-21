@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 type AccountUserCaseMethods interface {
@@ -19,12 +20,14 @@ type AccountUserCaseMethods interface {
 type AccountUsecase struct {
 	repo *repository.AccountRepo 
 	conn *pgx.Conn
+	logger *zap.Logger
 }
 
-func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn) *AccountUsecase{
+func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn , logger *zap.Logger) *AccountUsecase{
 	return &AccountUsecase{
 		repo: reposi,
 		conn: conn,
+		logger: logger,
 	}
 }
 func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
@@ -35,7 +38,7 @@ func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
 	newAccount.AccountNo = userID + randomNumber
 	newAccount.Balance = 0
 	newAccount.MinBalance = 500
-	err := repository.NewAccountRepo(conn).CreateAccount(&newAccount)
+	err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -44,7 +47,7 @@ func (a *AccountUsecase) CreateAccount(userID int , conn *pgx.Conn) error {
 }
 
 func (a *AccountUsecase) GetByAccountNo(accountNo int , conn* pgx.Conn) (* domain.Account , error) {
-	account , err := repository.NewAccountRepo(conn).GetByNo(accountNo)
+	account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -53,7 +56,7 @@ func (a *AccountUsecase) GetByAccountNo(accountNo int , conn* pgx.Conn) (* domai
 }
 
 func (a * AccountUsecase) GetAllAccounts(conn *pgx.Conn) ([] domain.Account , error){
-	accounts , err := repository.NewAccountRepo(conn).GetAll()
+	accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err

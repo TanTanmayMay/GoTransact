@@ -8,46 +8,62 @@ import (
 	"rest1/internal/handler"
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
-
+	"go.uber.org/zap"
 	// "rest1/internal/domain"
 	// "rest1/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"os"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	username := "nishant" // os.Env
-	password := "nishant"
+
+	// initialize zap
+	var logger *zap.Logger
+	var err error
+    logger, err = zap.NewProduction()
+    if err != nil {
+        log.Fatalf("Failed to initialize Zap logger: %v", err)
+    }
+
+    defer logger.Sync()  //buffer
+	err = godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file")
+		return
+	}
+	username :=  os.Getenv("DB_USER")//"nishant"
+	password := os.Getenv("DB_PASSWORD")
 	host := "db"
 	port := "5432"
-	database := "nishant"
-	fmt.Println("Connecting to .....")
+	database :=  os.Getenv("DB_NAME")
 	// Connection string
 	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=disable", username, password, host, port, database)
 
 	// Establish a connection to the PostgreSQL database
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal("Error connecting to PostgreSQL", zap.Error(err))
 	}
 	defer conn.Close(context.Background())
 	// Check the connection
 	err = conn.Ping(context.Background())
 	if err != nil {
-		log.Fatal(err)
+		logger.Panic("Connection not established!")
 	}
-	fmt.Println("Connected to PostgreSQL!")
+	logger.Info("Connected to PostgreSQL")
 
 	r := chi.NewRouter()
 
 	// Initialize UseCase and Handler
 	// func NewAccountRepo(conn *pgx.Conn)
-	userRepo := repository.NewUserRepo(conn)
-	accountRepo := repository.NewAccountRepo(conn)
-	userUseCase := usecases.NewUserUseCase(userRepo , conn)
-	accountUseCase := usecases.NewAccountUseCase(accountRepo , conn)
-	userHandler := handler.NewUserHandler(userUseCase, conn)
-	accountHandler := handler.NewAccountHandler(accountUseCase , conn)
+	userRepo := repository.NewUserRepo(conn, logger)
+	accountRepo := repository.NewAccountRepo(conn, logger)
+	userUseCase := usecases.NewUserUseCase(userRepo, conn, logger)
+	accountUseCase := usecases.NewAccountUseCase(accountRepo, conn, logger)
+	userHandler := handler.NewUserHandler(userUseCase, conn, logger)
+	accountHandler := handler.NewAccountHandler(accountUseCase, conn, logger)
 
 	// Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +77,7 @@ func main() {
 	r.Get("/account/{accoundId}", accountHandler.GetByAccountNoHandler)
 
 
-
+	logger.Info("Server listening on :8000")
 	http.ListenAndServe(":8000", r)
 	// user1  := repository.NewUserRepo(conn)
 	// user1.CreateTable()

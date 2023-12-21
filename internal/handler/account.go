@@ -8,18 +8,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 
 type AccountHandler struct {
 	UseCase *usecases.AccountUsecase
 	conn *pgx.Conn
+	logger *zap.Logger
 }
 
-func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn) *AccountHandler{
+func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn, logger *zap.Logger) *AccountHandler{
 	return &AccountHandler{
 		UseCase: useCase,
 		conn: conn,
+		logger: logger,
 	}
 }
 
@@ -34,6 +37,7 @@ func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Req
 	// check if user from req.body is valid
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.logger.Error("Failed to Create Account Handler", zap.Error(err))
 		return 
 	}
 
@@ -52,6 +56,7 @@ func (h *AccountHandler) GetByAccountNoHandler(w http.ResponseWriter, r *http.Re
 
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Failed to get account by ID at Handler layer", zap.Error(err))
 		return 
 	}
 

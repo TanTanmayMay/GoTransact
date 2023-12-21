@@ -6,14 +6,19 @@ import (
 	"rest1/internal/domain"
 
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 type UserRepo struct {
 	conn *pgx.Conn
+	logger *zap.Logger
 }
 
-func NewUserRepo(conn *pgx.Conn) *UserRepo {
-	return &UserRepo{conn: conn}
+func NewUserRepo(conn *pgx.Conn , logger *zap.Logger) *UserRepo {
+	return &UserRepo{
+		conn: conn ,
+		logger:  logger,
+	}
 }
 var  count = 0
 func (u *UserRepo) CreateTable() error {
@@ -43,7 +48,9 @@ func (u *UserRepo) GetAll() ([]domain.User, error) {
 	for rows.Next() {
 		var user domain.User
 		if err := rows.Scan(&user.ID, &user.Name, &user.AccountNo, &user.Password); err != nil {
+			u.logger.Error("Failed to get all accounts from Database", zap.Error(err))
 			return nil, err
+
 		}
 		users = append(users, user)
 	}
@@ -56,6 +63,8 @@ func (u *UserRepo) GetByID(id int) (*domain.User, error) {
 	err := u.conn.QueryRow(context.Background(), "SELECT id, name, accountNo, password FROM users WHERE id = $1", id).Scan(&user.ID, &user.Name, &user.AccountNo, &user.Password)
 
 	if err != nil {
+		u.logger.Error("Failed to get account by ID from Database", zap.Error(err))
+
 		return nil, err
 	}
 
@@ -66,7 +75,7 @@ func (u *UserRepo) CreateUser(user *domain.User) error {
 	var id int
 	err := u.conn.QueryRow(context.Background(), "INSERT INTO users(id , name, accountNo, password) VALUES($1, $2, $3 , $4) RETURNING id", user.ID , user.Name , user.AccountNo , user.Password).Scan(&id)
 	if(err != nil) {
-		fmt.Println(err)
+		u.logger.Error("Failed to create user in Database", zap.Error(err))
 	}
 	return nil
 }
@@ -75,11 +84,12 @@ func (u *UserRepo) Withdraw(user *domain.User, amount int) error {
 	qry := "UPDATE accounts SET accounts.balance = (accounts.balance - $1) WHERE accounts.accountno = $2"
 	_, err := u.conn.Exec(context.Background(), qry, amount, user.ID)
 	if err != nil {
-		fmt.Println(err)
+		u.logger.Error("Failed to withdraw from account", zap.Error(err))
 		return err
 	}
 	return nil
 }
+
 
 func (u *UserRepo) Deposit(user *domain.User, amount int) error {
 	/* 
@@ -91,7 +101,7 @@ func (u *UserRepo) Deposit(user *domain.User, amount int) error {
 	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE accounts.accountno = $2"
 	_, err := u.conn.Exec(context.Background(), qry, amount, user.ID)
 	if err != nil {
-		fmt.Println(err)
+		u.logger.Error("Failed to Deposit in Account", zap.Error(err))
 		return err
 	}
 	return nil
