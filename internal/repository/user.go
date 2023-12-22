@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"rest1/internal/domain"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type UserRepo struct {
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewUserRepo(conn *pgx.Conn , logger *zap.Logger) *UserRepo {
+func NewUserRepo(conn *pgxpool.Pool , logger *zap.Logger) *UserRepo {
 	return &UserRepo{
 		conn: conn ,
 		logger:  logger,
@@ -100,7 +101,7 @@ func (u *UserRepo) Deposit(account *domain.Account, amount int) error {
 		FROM product_segment
 		WHERE product.segment_id = product_segment.id;
 	*/
-	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE accounts.userid = $2"
+	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE userid = $2"
 	_, err := u.conn.Exec(context.Background(), qry, amount, account.UserID)
 	if err != nil {
 		u.logger.Error("Failed to Deposit in Account", zap.Error(err))

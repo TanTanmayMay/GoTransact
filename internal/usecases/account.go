@@ -5,26 +5,27 @@ import (
 	"log"
 	"rest1/internal/domain"
 	"rest1/internal/repository"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type AccountUserCaseMethods interface {
 	DropAccountsTable() error
 	CreateAccountTable() error
-	CreateAccount(userId int , conn *pgx.Conn) (int, error)
-    GetByAccountNo(accountNo int , conn *pgx.Conn) (* domain.Account , error)
-	GetAllAccounts(conn *pgx.Conn) ([]domain.Account , error)	//[]domain.Account
+	CreateAccount(userId int , conn *pgxpool.Pool) (int, error)
+    GetByAccountNo(accountNo int , conn *pgxpool.Pool) (* domain.Account , error)
+	GetAllAccounts(conn *pgxpool.Pool) ([]domain.Account , error)	//[]domain.Account
 }
 
 type AccountUsecase struct {
 	repo *repository.AccountRepo 
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgx.Conn , logger *zap.Logger) *AccountUsecase{
+func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgxpool.Pool , logger *zap.Logger) *AccountUsecase{
 	return &AccountUsecase{
 		repo: reposi,
 		conn: conn,
@@ -51,23 +52,25 @@ func (a *AccountUsecase) CreateAccountTable() error{
 
 	return nil
 }
-func (a *AccountUsecase) CreateAccount(userID uuid.UUID , conn *pgx.Conn) (uuid.UUID, error) {
+func (a *AccountUsecase) CreateAccount(userID uuid.UUID , conn *pgxpool.Pool) (uuid.UUID, error) {
 	var newAccount domain.Account
 
 	newAccount.UserID = userID 
 	newAccount.Balance = float64(0.0)
 	newAccount.MinBalance = float64(500.0)
 	newAccount.AccountNo = uuid.New()
+	fmt.Println("usecase account id", newAccount.AccountNo)
+
 	//err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
-	id, err := a.repo.CreateAccount(&newAccount)
+	accid, err := a.repo.CreateAccount(&newAccount)
 	if err != nil {
 		log.Fatal(err)
 		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err
 	}
-	return id, nil
+	return accid, nil
 }
 
-func (a *AccountUsecase) GetByAccountNo(accountNo int , conn* pgx.Conn) (* domain.Account , error) {
+func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID , conn* pgxpool.Pool) (* domain.Account , error) {
 	//account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
 	account, err := a.repo.GetByNo(accountNo)
 	if err != nil {
@@ -86,7 +89,7 @@ func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (* domain.Account,
 	return account, err
 }
 
-func (a * AccountUsecase) GetAllAccounts(conn *pgx.Conn) ([] domain.Account , error){
+func (a * AccountUsecase) GetAllAccounts(conn *pgxpool.Pool) ([] domain.Account , error){
 	//accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
 	accounts, err := a.repo.GetAll()
 	if err != nil {

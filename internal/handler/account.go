@@ -1,25 +1,25 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"rest1/internal/domain"
 	"rest1/internal/usecases"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 
 type AccountHandler struct {
 	UseCase *usecases.AccountUsecase
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn, logger *zap.Logger) *AccountHandler{
+func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgxpool.Pool, logger *zap.Logger) *AccountHandler{
 	return &AccountHandler{
 		UseCase: useCase,
 		conn: conn,
@@ -48,17 +48,22 @@ func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *htt
 // Create Account route
 // http://localhost:8000/account/create/{userid}
 func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Request){
-	var account domain.Account
 	idStr := chi.URLParam(r, "userid")
 	userId , err := uuid.Parse(idStr)
+	fmt.Println(userId)
 
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 
-	_, err = h.UseCase.CreateAccount(userId, h.conn)
-	
+	accid, err := h.UseCase.CreateAccount(userId, h.conn)
+	fmt.Println("handler account id", accid)
 	if err != nil{
+		respondWithJSON(w, http.StatusBadRequest, err)
+	}
+	var account *domain.Account
+	account, err = h.UseCase.GetByAccountNo(accid, h.conn)
+	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 	respondWithJSON(w, http.StatusOK, account)
@@ -69,7 +74,7 @@ func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Req
 func (h *AccountHandler) GetByAccountNoHandler(w http.ResponseWriter, r *http.Request){
 	// get ID from url parameters
 	idStr := chi.URLParam(r, "accoundId")
-	accountId, err := strconv.Atoi(idStr)
+	accountId, err := uuid.Parse(idStr)
 
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)

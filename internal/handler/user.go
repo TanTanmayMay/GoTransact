@@ -2,24 +2,26 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"rest1/internal/domain"
 	"rest1/internal/usecases"
 	"strconv"
+	"github.com/go-chi/render"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 
 type UserHandler struct {
 	UseCase *usecases.UserUsecase
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewUserHandler(useCase *usecases.UserUsecase , conn *pgx.Conn , logger *zap.Logger) *UserHandler{
+func NewUserHandler(useCase *usecases.UserUsecase , conn *pgxpool.Pool , logger *zap.Logger) *UserHandler{
 	return &UserHandler{
 		UseCase: useCase,
 		conn: conn,
@@ -47,21 +49,26 @@ func (h *UserHandler) CreateUsersTableHandler(w http.ResponseWriter, r *http.Req
 // Create User route
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 	var user domain.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	user.ID = uuid.New()
-	// check if user from req.body is valid
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		h.logger.Error("Invalid Data to create User")
-		return 
+	// err := json.NewDecoder(r.Body).Decode(&user)
+
+	/* 
+		if err := render.Decode(r.Body, &user); err != nil {
+			http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
+			return
+		}
+	*/
+	if err := render.Decode(r, &user); err != nil {
+		http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
+		return
 	}
+	user.ID = uuid.New()
 	// newAccId, err := h.UseCase.CreateAccount(user.ID, h.conn)
 	// if err != nil {
 	// 	h.logger.Error("Error while creating account by user.go handler")
 	// 	return 
 	// }
 
-	err = h.UseCase.CreateUser(&user, h.conn)
+	err := h.UseCase.CreateUser(&user, h.conn)
 	if err != nil {
 		// http.Error(w, "Error while creating user", http.StatusInternalServerError)
 		// h.logger.Error("Error while creating user at creatUser", zap.Error(err))
@@ -70,7 +77,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 		return 
 	}
 	
-	respondWithJSON(w, http.StatusOK, user)
+	render.JSON(w, r, user)
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request){
@@ -83,7 +90,8 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request){
 		return 
 	}
 
-	respondWithJSON(w, http.StatusOK, users)
+	render.JSON(w, r, users)
+
 }
 
 
@@ -103,7 +111,8 @@ func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request){
 		http.Error(w, err.Error(), http.StatusNotFound)
 		h.logger.Error("Invalid ID to get get account by ID", zap.Error(err))
 	}
-	respondWithJSON(w, http.StatusOK, user)
+	render.JSON(w, r, user)
+
 }
 
 // withdraw money
@@ -127,6 +136,12 @@ func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
 		return 
 	} 
 	user, err := h.UseCase.GetUserById(id, h.conn)
+	
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Cannot fetch user", zap.Error(err))
+		return 
+	} 
 
 	amountStr := chi.URLParam(r, "amount")
 	var amount int
@@ -134,11 +149,11 @@ func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
 
 	if(err != nil){
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		h.logger.Error("Cannot fetch user", zap.Error(err))
+		h.logger.Error("Cannot convert amount to integer", zap.Error(err))
 		return 
 	} 
 	
-	// func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgx.Conn) error {
+	// func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgxpool.Conn) error {
 	err = h.UseCase.Withdraw(user, amount, h.conn)
 
 	if(err != nil){
@@ -150,15 +165,15 @@ func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
 
 func (h *UserHandler) DepositHandler(w http.ResponseWriter, r *http.Request){
 	idStr := chi.URLParam(r, "userid")
-	id, err := uuid.Parse(idStr)
+	userid, err := uuid.Parse(idStr)
 	if(err != nil){
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		h.logger.Error("Invalid ID while getting user at Handler Layer", zap.Error(err))
 		return 
 	} 
 
-	user, err := h.UseCase.GetUserById(id, h.conn)
-
+	user, err := h.UseCase.GetUserById(userid, h.conn)// NO ISSUE
+	fmt.Println("user from handler", user.Name)
 	amountStr := chi.URLParam(r, "amount")
 	var amount int
 	amount , err = strconv.Atoi(amountStr)
@@ -169,13 +184,12 @@ func (h *UserHandler) DepositHandler(w http.ResponseWriter, r *http.Request){
 		return 
 	} 
 	
-	// func (a *UserUsecase) Deposit(user *domain.User, amount int, conn *pgx.Conn) error {
+	// func (a *UserUsecase) Deposit(user *domain.User, amount int, conn *pgxpool.Conn) error {
 	err = h.UseCase.Deposit(user, amount, h.conn)
 
 	if(err != nil){
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		h.logger.Error("Cannot Deposit", zap.Error(err))
-		return 
+		fmt.Println("ERror from handler user", err)
+		respondWithJSON(w, http.StatusBadRequest, err) 
 	} 
 }
 	

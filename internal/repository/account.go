@@ -2,19 +2,21 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"rest1/internal/domain"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 
 type AccountRepo struct {
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewAccountRepo(conn *pgx.Conn, logger *zap.Logger) *AccountRepo {
+func NewAccountRepo(conn *pgxpool.Pool, logger *zap.Logger) *AccountRepo {
 	return &AccountRepo{
 		conn: conn,
 		logger: logger,
@@ -42,10 +44,9 @@ func (a *AccountRepo) CreateTable() error {
 	
 }
 
-func (a *AccountRepo) GetByNo(accountNo int) (*domain.Account, error) {
+func (a *AccountRepo) GetByNo(accountNo uuid.UUID) (*domain.Account, error) {
 	var account domain.Account
-	err := a.conn.QueryRow(context.Background(), "SELECT accountno, balance, minBalance , userid FROM accounts WHERE accountNo = $1", accountNo).
-		Scan(&account.AccountNo, &account.Balance, &account.MinBalance , &account.UserID)
+	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance  FROM accounts WHERE accountno = $1", accountNo).Scan(&account.AccountNo, &account.UserID , &account.Balance, &account.MinBalance)
 
 	if err != nil {
 		a.logger.Error("Failed to get account by ID from Database", zap.Error(err))
@@ -56,7 +57,11 @@ func (a *AccountRepo) GetByNo(accountNo int) (*domain.Account, error) {
 }
 
 func (a *AccountRepo) CreateAccount(account *domain.Account) (uuid.UUID, error) {
-	_, err := a.conn.Exec(context.Background(), "INSERT INTO accounts(accountno, balance, minBalance , userid) VALUES($1, $2, $3 , $4)", &account.AccountNo , &account.Balance , &account.MinBalance , account.UserID.String())
+	fmt.Println("repository acc id", account.AccountNo)
+	fmt.Println("repository userid ", account.UserID)
+	fmt.Println("repository ", account.Balance)
+	fmt.Println("repository ", account.MinBalance)
+	_, err := a.conn.Exec(context.Background(), "INSERT INTO accounts (accountno, userid, balance, minBalance) VALUES($1, $2, $3 , $4)", account.AccountNo , account.UserID, account.Balance , account.MinBalance )
 	if err != nil {
 		a.logger.Error("Failed to create account in Database")
 		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err // Return the error
@@ -65,7 +70,7 @@ func (a *AccountRepo) CreateAccount(account *domain.Account) (uuid.UUID, error) 
 }
 
 func (a *AccountRepo) GetAll() ([]domain.Account, error) {
-	rows, err := a.conn.Query(context.Background(), "SELECT accountNo, balance, minBalance, userid FROM accounts")
+	rows, err := a.conn.Query(context.Background(), "SELECT accountno, userid, balance, minBalance FROM accounts")
 	if err != nil {
 		a.logger.Error("Failed to get all accounts from Database", zap.Error(err))
 		return nil, err
@@ -86,9 +91,16 @@ func (a *AccountRepo) GetAll() ([]domain.Account, error) {
 }
 
 
-func (a* AccountRepo) GetAccByUserId(userid uuid.UUID) (* domain.Account , error) {
-	var account domain.Account
-	err := a.conn.QueryRow(context.Background(), "SELECT accountNo, balance, minBalance , userid FROM accounts WHERE userid = $1", userid).Scan(&account.AccountNo, &account.Balance, &account.MinBalance , &account.UserID)
+func (a* AccountRepo) GetAccByUserId(userid uuid.UUID) (*domain.Account , error) {
+	var account = domain.Account{}
+	fmt.Println("Repo userrrrid", userid)
+
+	// idstr := userid.String()
+	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance FROM accounts WHERE userid = $1", userid.String()).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance )
+	fmt.Println("Repo AccountNumber ", account.AccountNo)
+	fmt.Println("Repo AccountUID ", account.UserID)
+	fmt.Println("Repo AccountBalan ", account.Balance)
+	fmt.Println("Repo AccMinBal ", account.MinBalance)
 	if err != nil {
 		a.logger.Error("Failed to get account by ID from Database", zap.Error(err))
 		return nil, err

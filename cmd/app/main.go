@@ -9,9 +9,8 @@ import (
 	"rest1/internal/handler"
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
-
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
@@ -45,11 +44,21 @@ func main() {
 	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=disable", username, password, host, port, database)
 
 	// Establish a connection to the PostgreSQL database
-	conn, err := pgx.Connect(context.Background(), connString)
+
+	/* 
+		Before
+	conn, err := pgx.Connect(context.Background(), "your-database-connection-string")
+
+	After
+	pool, err := pgxpool.Connect(context.Background(), "your-database-connection-string")
+
+	*/
+	// conn, err := pgxpool.Connect(context.Background(), connString)
+	conn, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		logger.Fatal("Error connecting to PostgreSQL", zap.Error(err))
 	}
-	defer conn.Close(context.Background())
+	defer conn.Close()
 	// Check the connection
 	err = conn.Ping(context.Background())
 	if err != nil {
@@ -78,11 +87,12 @@ func main() {
 	r.Get("/user/get/{userid}" , userHandler.GetUserById)
 	r.Get("/user/getall", userHandler.GetAllUsers)
 	
-	r.Put("/withdraw/{userid}/amount", userHandler.WithdrawHandler) // TODO
-	r.Put("/deposit/{userid}/amount", userHandler.DepositHandler)
+	r.Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
+	r.Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)  //TODO
 	
 	r.Post("/account/create/{userid}" , accountHandler.CreateAccountHandler)
 	r.Get("/account/get/{accoundId}", accountHandler.GetByAccountNoHandler)
+	
 
 	// Utility Routes
 	r.Get("/drop/account/table", accountHandler.DropAccountsTableHandler)
