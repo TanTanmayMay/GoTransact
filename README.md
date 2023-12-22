@@ -1,3 +1,3 @@
-#CRUD GO 
-Application to perform crud operations on Postgres Database with the docker container itself. Pgx package is used to make connection. 
-Uber Zap logger is used for logging purpose. Go Chi Router is used for routing purpose
+A **Clean Architecture** based web application that implements **CRUD** operations through **RESTful APIs**.
+Docker containerised **PostgresQL** databse used for data persistence.
+**Uber Zap** is used for logging. **Go Chi** Router is used for routing.
