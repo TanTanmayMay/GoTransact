@@ -1,9 +1,12 @@
 package domain
 
+import "github.com/google/uuid"
+
 type Account struct {
-	AccountNo int `json:"accountNo"`
-	Balance int `json:"balance"`
-	MinBalance int `json:"minbalance"`
+	AccountNo uuid.UUID `json:"accountNo"`
+	Balance float64 `json:"balance"`
+	MinBalance float64 `json:"minbalance"`
+	UserID uuid.UUID `json:"userID"` //foreign key
 }
 
 type AccountMethods interface {

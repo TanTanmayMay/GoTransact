@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
@@ -25,6 +26,15 @@ func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn, logger
 		logger: logger,
 	}
 }
+func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http.Request){
+	err := h.UseCase.DropAccountsTable()
+
+	if err != nil {
+		respondWithJSON(w, http.StatusBadRequest, err)
+	}
+
+	respondWithJSON(w, http.StatusOK, nil)
+}
 func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *http.Request){
 
 	err := h.UseCase.CreateAccountTable()
@@ -36,13 +46,12 @@ func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *htt
 }
 
 // Create Account route
-// http://localhost:3000/{userid}/account/create
+// http://localhost:8000/account/create/{userid}
 func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Request){
 	var account domain.Account
 	idStr := chi.URLParam(r, "userid")
-	userId, err := strconv.Atoi(idStr)
+	userId , err := uuid.Parse(idStr)
 
-	// check if user from req.body is valid
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}

@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"rest1/internal/handler"
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
-	"go.uber.org/zap"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
-	"os"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
+/*
+create a map (int -> uuid)
+and user id to API will be int but internally we'll pass uuid
+*/
 func main() {
 
 	// initialize zap
@@ -67,61 +72,25 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("welcome"))
 	})
-	r.Post("/user/register", userHandler.Register)
-	r.Get("/user/{userid}" , userHandler.GetAccountById)
-	r.Get("/users", userHandler.GetAllUsers)
-	r.Get("/create/users/table", userHandler.CreateUsersTableHandler)
 
 	
-	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
+	r.Post("/user/register", userHandler.Register)
+	r.Get("/user/get/{userid}" , userHandler.GetUserById)
+	r.Get("/user/getall", userHandler.GetAllUsers)
+	
+	r.Put("/withdraw/{userid}/amount", userHandler.WithdrawHandler) // TODO
+	r.Put("/deposit/{userid}/amount", userHandler.DepositHandler)
+	
 	r.Post("/account/create/{userid}" , accountHandler.CreateAccountHandler)
-	r.Get("/account/{accoundId}", accountHandler.GetByAccountNoHandler)
+	r.Get("/account/get/{accoundId}", accountHandler.GetByAccountNoHandler)
 
+	// Utility Routes
+	r.Get("/drop/account/table", accountHandler.DropAccountsTableHandler)
+	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
+	r.Get("/create/users/table", userHandler.CreateUsersTableHandler)
+	r.Get("/drop/users/table", userHandler.DropUserTableHandler)
 
 	logger.Info("Server listening on :8000")
 	http.ListenAndServe(":8000", r)
-
-
-
-	
-	// user1  := repository.NewUserRepo(conn)
-	// user1.CreateTable()
-	// _1 , err1 := conn.Exec(context.Background() , "CREATE TABLE users (id INT GENERATED ALWAYS AS IDENTITY, accountno INT, name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(id), CONSTRAINT fk_account FOREIGN KEY(accountno) REFERENCES accounts(accountno));")
-	// if(err1 != nil){
-	// 	fmt.Println(err1)
-	// 	fmt.Println(_1)
-
-	// }
-	// Perform database operations here...
-
-	// Example: Querying the version of the PostgreSQL server
-	// var version string
-	// err = conn.QueryRow(context.Background(), "SELECT version()").Scan(&version)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//  _ , err = conn.Exec(context.Background() , "CREATE TABLE users (id INT PRIMARY KEY,name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL,accountNo INT);")
-	//  if err != nil{
-	// 	fmt.Println(err)
-	//  }
-	// var user domain.User;
-	// user.ID = 2003
-	// user.AccountNo = 123
-	// user.Name = "NMMMM"
-	// user.Password = "abcd"
-	// user1  := repository.NewUserRepo(conn)
-	// user1.Create(&user)
-	// // fmt.Println("PostgreSQL version:", version)
-	// users, err := repository.NewUserRepo(conn).GetAll(conn)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		return
-	// 	}
-	// 	// Print the users to the response.
-	// 	for _, user := range users {
-	// 		fmt.Printf("ID: %d, Name: %s, AccountNo: %d, Password: %s\n", user.ID, user.Name, user.AccountNo, user.Password)
-	// 	}
-
-	// //8000 port in router
 
 }

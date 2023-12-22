@@ -7,6 +7,7 @@ import (
 	"rest1/internal/usecases"
 	"strconv"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
@@ -26,6 +27,14 @@ func NewUserHandler(useCase *usecases.UserUsecase , conn *pgx.Conn , logger *zap
 	}
 }
 
+func (h *UserHandler) DropUserTableHandler(w http.ResponseWriter, r *http.Request){
+	err := h.UseCase.DropUserTable()
+	if(err != nil){
+		respondWithJSON(w, http.StatusBadRequest, err)
+	}
+	respondWithJSON(w, http.StatusOK, nil)
+}
+
 func (h *UserHandler) CreateUsersTableHandler(w http.ResponseWriter, r *http.Request){
 	err := h.UseCase.CreateUserTable()
 
@@ -38,9 +47,8 @@ func (h *UserHandler) CreateUsersTableHandler(w http.ResponseWriter, r *http.Req
 // Create User route
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request){
 	var user domain.User
-
 	err := json.NewDecoder(r.Body).Decode(&user)
-
+	user.ID = uuid.New()
 	// check if user from req.body is valid
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -79,17 +87,17 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request){
 }
 
 
-func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
+func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request){
 	// get ID from url parameters
 	idStr := chi.URLParam(r, "userid")
-	id, err := strconv.Atoi(idStr)
+	id, err := uuid.Parse(idStr)
 
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		h.logger.Error("Invalid ID while getting user at Handler Layer", zap.Error(err))
 		return 
 	}
-	user, err := h.UseCase.GetAccountByID(id, h.conn)
+	user, err := h.UseCase.GetUserById(id, h.conn)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -101,8 +109,76 @@ func (h *UserHandler) GetAccountById(w http.ResponseWriter, r *http.Request){
 // withdraw money
 // localhost:3000/
 func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request){
+	/* 
+		//Tanmay
+		{
+			"userid" : "-----",
+			"amount" : 12
+		}
+
+		var req
+		err := json.NewDecoder(r.Body).Decode(&user)
+	*/
+	idStr := chi.URLParam(r, "userid")
+	id, err := uuid.Parse(idStr)
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Invalid ID while getting user at Handler Layer", zap.Error(err))
+		return 
+	} 
+	user, err := h.UseCase.GetUserById(id, h.conn)
+
+	amountStr := chi.URLParam(r, "amount")
+	var amount int
+	amount , err = strconv.Atoi(amountStr)
+
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Cannot fetch user", zap.Error(err))
+		return 
+	} 
 	
+	// func (a *UserUsecase) Withdraw(user *domain.User, amount int, conn *pgx.Conn) error {
+	err = h.UseCase.Withdraw(user, amount, h.conn)
+
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Cannot Withdraw as Amount goes below minimum balance", zap.Error(err))
+		return 
+	} 
 }
+
+func (h *UserHandler) DepositHandler(w http.ResponseWriter, r *http.Request){
+	idStr := chi.URLParam(r, "userid")
+	id, err := uuid.Parse(idStr)
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Invalid ID while getting user at Handler Layer", zap.Error(err))
+		return 
+	} 
+
+	user, err := h.UseCase.GetUserById(id, h.conn)
+
+	amountStr := chi.URLParam(r, "amount")
+	var amount int
+	amount , err = strconv.Atoi(amountStr)
+
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Cannot fetch user", zap.Error(err))
+		return 
+	} 
+	
+	// func (a *UserUsecase) Deposit(user *domain.User, amount int, conn *pgx.Conn) error {
+	err = h.UseCase.Deposit(user, amount, h.conn)
+
+	if(err != nil){
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		h.logger.Error("Cannot Deposit", zap.Error(err))
+		return 
+	} 
+}
+	
 
 
 // Utitlity function to response in JSON
