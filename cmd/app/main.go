@@ -9,6 +9,7 @@ import (
 	"rest1/internal/handler"
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -18,39 +19,42 @@ import (
 /*
 create a map (int -> uuid)
 and user id to API will be int but internally we'll pass uuid
+
+Update:
+Done directly by using UUID and storing it in Database as VARCHAR(255)
 */
 func main() {
 
 	// initialize zap
 	var logger *zap.Logger
 	var err error
-    logger, err = zap.NewProduction()
-    if err != nil {
-        log.Fatalf("Failed to initialize Zap logger: %v", err)
-    }
+	logger, err = zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize Zap logger: %v", err)
+	}
 
-    defer logger.Sync()  //buffer
+	defer logger.Sync() //buffer
 	err = godotenv.Load()
 	if err != nil {
 		fmt.Println("Error loading .env file")
 		return
 	}
-	username :=  os.Getenv("DB_USER")//"nishant"
+	username := os.Getenv("DB_USER") //"nishant"
 	password := os.Getenv("DB_PASSWORD")
 	host := "db"
 	port := "5432"
-	database :=  os.Getenv("DB_NAME")
+	database := os.Getenv("DB_NAME")
 	// Connection string
 	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=disable", username, password, host, port, database)
 
 	// Establish a connection to the PostgreSQL database
 
-	/* 
+	/*
 		Before
-	conn, err := pgx.Connect(context.Background(), "your-database-connection-string")
+		conn, err := pgx.Connect(context.Background(), "your-database-connection-string")
 
-	After
-	pool, err := pgxpool.Connect(context.Background(), "your-database-connection-string")
+		After
+		pool, err := pgxpool.Connect(context.Background(), "your-database-connection-string")
 
 	*/
 	// conn, err := pgxpool.Connect(context.Background(), connString)
@@ -82,18 +86,16 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 
-	
+	// user routes
 	r.Post("/user/register", userHandler.Register)
-	r.Get("/user/get/{userid}" , userHandler.GetUserById)
+	r.Get("/user/get/{userid}", userHandler.GetUserById)
 	r.Get("/user/getall", userHandler.GetAllUsers)
-	
+	// functionality routes
 	r.Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
-	r.Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)  //TODO
-	
-	r.Post("/account/create/{userid}" , accountHandler.CreateAccountHandler)
+	r.Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
+	// account routes
+	r.Post("/account/create/{userid}", accountHandler.CreateAccountHandler)
 	r.Get("/account/get/{accoundId}", accountHandler.GetByAccountNoHandler)
-	
-
 	// Utility Routes
 	r.Get("/drop/account/table", accountHandler.DropAccountsTableHandler)
 	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
