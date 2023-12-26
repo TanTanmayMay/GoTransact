@@ -9,6 +9,7 @@ import (
 	"rest1/internal/handler"
 	"rest1/internal/repository"
 	"rest1/internal/usecases"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -86,16 +87,23 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 
-	// user routes
-	r.Post("/user/register", userHandler.Register)
-	r.Get("/user/get/{userid}", userHandler.GetUserById)
-	r.Get("/user/getall", userHandler.GetAllUsers)
+	// user routes  -> Grouped Routing
+	r.Route("/user", func(r chi.Router) {
+		r.Post("/register", userHandler.Register)
+		r.Get("/get/{userid}", userHandler.GetUserById)
+		r.Get("/getall", userHandler.GetAllUsers)
+	})
+
 	// functionality routes
 	r.Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
 	r.Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
-	// account routes
-	r.Post("/account/create/{userid}", accountHandler.CreateAccountHandler)
-	r.Get("/account/get/{accoundId}", accountHandler.GetByAccountNoHandler)
+
+	// account routes -> Grouped Routing
+	r.Route("/account", func(r chi.Router) {
+		r.Post("/create/{userid}", accountHandler.CreateAccountHandler)
+		r.Get("/get/{accoundId}", accountHandler.GetByAccountNoHandler)
+	})
+
 	// Utility Routes
 	r.Get("/drop/account/table", accountHandler.DropAccountsTableHandler)
 	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
@@ -103,6 +111,21 @@ func main() {
 	r.Get("/drop/users/table", userHandler.DropUserTableHandler)
 
 	logger.Info("Server listening on :8000")
-	http.ListenAndServe(":8000", r)
 
+	port1, port2 := ":8000", ":8001"
+
+	var waitgroup sync.WaitGroup
+
+	waitgroup.Add(1)
+	go serverStarter(port1, r, &waitgroup, logger)
+	waitgroup.Add(1)
+	go serverStarter(port2, r, &waitgroup, logger)
+
+	waitgroup.Wait()
+}
+
+func serverStarter(portt string, routerr *chi.Mux, wg *sync.WaitGroup, logger *zap.Logger) {
+	defer wg.Done()
+	logger.Info("Server listening...") //, portt ????
+	http.ListenAndServe(portt, routerr)
 }
