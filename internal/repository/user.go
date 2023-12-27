@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"rest1/internal/domain"
+	"sync"
 
 	"github.com/google/uuid"
+	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -40,21 +42,49 @@ func (u *UserRepo) CreateUserTable() error {
 	return nil
 }
 
+func (u *UserRepo) GetIndividual(idd uuid.UUID, wg *sync.WaitGroup, userChan chan<- domain.User) {
+	defer wg.Done()
+	var user domain.User
+	err := u.conn.QueryRow(context.Background(), "SELECT userid, name, password FROM users WHERE userid = $1", idd).Scan(&user.ID, &user.Name, &user.Password)
+
+	if err != nil {
+		u.logger.Error("Failed to get account by ID from Database", zap.Error(err))
+
+		return
+	}
+
+	userChan <- user
+}
+
 func (u *UserRepo) GetAll() ([]domain.User, error) {
-	rows, err := u.conn.Query(context.Background(), "SELECT userid, name, password FROM users")
+	rows, err := u.conn.Query(context.Background(), "SELECT userid FROM users")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var wg sync.WaitGroup
+	userChan := make(chan domain.User, 20)
+
 	var users []domain.User
 	for rows.Next() {
-		var user domain.User
-		if err := rows.Scan(&user.ID, &user.Name, &user.Password); err != nil {
-			u.logger.Error("Failed to get all accounts from Database", zap.Error(err))
+		var uidd uuid.UUID
+		err := rows.Scan(&uidd)
+		if err != nil {
+			u.logger.Error("Failed to scan user ID", zap.Error(err))
 			return nil, err
-
 		}
+
+		wg.Add(1)
+		go u.GetIndividual(uidd, &wg, userChan)
+	}
+
+	go func() {
+		wg.Wait()
+		close(userChan)
+	}()
+
+	for user := range userChan {
 		users = append(users, user)
 	}
 

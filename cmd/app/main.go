@@ -113,8 +113,8 @@ func main() {
 	})
 
 	// functionality routes
-	r.With(validateUUIDMiddleware).Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
-	r.With(validateUUIDMiddleware).Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
+	// r.With(validateUUIDMiddleware).Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
+	// r.With(validateUUIDMiddleware).Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
 
 	// account routes -> Grouped Routing
 	r.Route("/account", func(r chi.Router) {
