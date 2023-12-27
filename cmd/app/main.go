@@ -95,10 +95,10 @@ func main() {
 	// func NewAccountRepo(conn *pgx.Conn)
 	userRepo := repository.NewUserRepo(conn, logger)
 	accountRepo := repository.NewAccountRepo(conn, logger)
-	userUseCase := usecases.NewUserUseCase(userRepo, conn, logger)
-	accountUseCase := usecases.NewAccountUseCase(accountRepo, conn, logger)
-	userHandler := handler.NewUserHandler(userUseCase, conn, logger)
-	accountHandler := handler.NewAccountHandler(accountUseCase, conn, logger)
+	userUseCase := usecases.NewUserUseCase(userRepo, logger)
+	accountUseCase := usecases.NewAccountUseCase(accountRepo, logger)
+	userHandler := handler.NewUserHandler(userUseCase, logger)
+	accountHandler := handler.NewAccountHandler(accountUseCase, logger)
 
 	// Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

@@ -4,36 +4,33 @@ import (
 	"fmt"
 	"log"
 	"rest1/internal/domain"
-	"rest1/internal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
-type AccountUserCaseMethods interface {
+type AccountRepository interface {
 	DropAccountsTable() error
-	CreateAccountTable() error
-	CreateAccount(userId int , conn *pgxpool.Pool) (int, error)
-    GetByAccountNo(accountNo int , conn *pgxpool.Pool) (* domain.Account , error)
-	GetAllAccounts(conn *pgxpool.Pool) ([]domain.Account , error)	//[]domain.Account
+	CreateTable() error
+	GetByNo(accountNo uuid.UUID) (*domain.Account, error)
+	CreateAccount(account *domain.Account) (uuid.UUID, error)
+	GetAll() ([]domain.Account, error)
+	GetAccByUserId(userid uuid.UUID) (*domain.Account, error)
 }
 
 type AccountUsecase struct {
-	repo *repository.AccountRepo 
-	conn *pgxpool.Pool
+	repo   AccountRepository
 	logger *zap.Logger
 }
 
-func NewAccountUseCase (reposi *repository.AccountRepo, conn *pgxpool.Pool , logger *zap.Logger) *AccountUsecase{
+func NewAccountUseCase(reposi AccountRepository, logger *zap.Logger) *AccountUsecase {
 	return &AccountUsecase{
-		repo: reposi,
-		conn: conn,
+		repo:   reposi,
 		logger: logger,
 	}
 }
 
-func (a *AccountUsecase) DropAccountsTable() error{
+func (a *AccountUsecase) DropAccountsTable() error {
 	err := a.repo.DropAccountsTable()
 	if err != nil {
 		fmt.Println("Error while deleting account table")
@@ -43,7 +40,7 @@ func (a *AccountUsecase) DropAccountsTable() error{
 	return nil
 }
 
-func (a *AccountUsecase) CreateAccountTable() error{
+func (a *AccountUsecase) CreateAccountTable() error {
 	err := a.repo.CreateTable()
 	if err != nil {
 		fmt.Println("Error while creating account table")
@@ -52,10 +49,10 @@ func (a *AccountUsecase) CreateAccountTable() error{
 
 	return nil
 }
-func (a *AccountUsecase) CreateAccount(userID uuid.UUID , conn *pgxpool.Pool) (uuid.UUID, error) {
+func (a *AccountUsecase) CreateAccount(userID uuid.UUID) (uuid.UUID, error) {
 	var newAccount domain.Account
 
-	newAccount.UserID = userID 
+	newAccount.UserID = userID
 	newAccount.Balance = float64(0.0)
 	newAccount.MinBalance = float64(500.0)
 	newAccount.AccountNo = uuid.New()
@@ -70,7 +67,7 @@ func (a *AccountUsecase) CreateAccount(userID uuid.UUID , conn *pgxpool.Pool) (u
 	return accid, nil
 }
 
-func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID , conn* pgxpool.Pool) (* domain.Account , error) {
+func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID) (*domain.Account, error) {
 	//account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
 	account, err := a.repo.GetByNo(accountNo)
 	if err != nil {
@@ -80,7 +77,7 @@ func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID , conn* pgxpool.Pool
 	return account, nil
 }
 
-func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (* domain.Account, error) {
+func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (*domain.Account, error) {
 	account, err := a.repo.GetAccByUserId(userid)
 	if err != nil {
 		a.logger.Error("Could not Ftech account")
@@ -89,7 +86,7 @@ func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (* domain.Account,
 	return account, err
 }
 
-func (a * AccountUsecase) GetAllAccounts(conn *pgxpool.Pool) ([] domain.Account , error){
+func (a *AccountUsecase) GetAllAccounts() ([]domain.Account, error) {
 	//accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
 	accounts, err := a.repo.GetAll()
 	if err != nil {

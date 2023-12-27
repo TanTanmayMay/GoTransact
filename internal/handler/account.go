@@ -8,25 +8,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
-
 type AccountHandler struct {
 	UseCase *usecases.AccountUsecase
-	conn *pgxpool.Pool
-	logger *zap.Logger
+	logger  *zap.Logger
 }
 
-func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgxpool.Pool, logger *zap.Logger) *AccountHandler{
+func NewAccountHandler(useCase *usecases.AccountUsecase, logger *zap.Logger) *AccountHandler {
 	return &AccountHandler{
 		UseCase: useCase,
-		conn: conn,
-		logger: logger,
+		logger:  logger,
 	}
 }
-func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http.Request){
+func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http.Request) {
 	err := h.UseCase.DropAccountsTable()
 
 	if err != nil {
@@ -35,11 +31,11 @@ func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http
 
 	respondWithJSON(w, http.StatusOK, nil)
 }
-func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *http.Request){
+func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := h.UseCase.CreateAccountTable()
 
-	if(err != nil){
+	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 	respondWithJSON(w, http.StatusOK, nil)
@@ -47,31 +43,30 @@ func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *htt
 
 // Create Account route
 // http://localhost:8000/account/create/{userid}
-func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Request){
+func (h *AccountHandler) CreateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "userid")
-	userId , err := uuid.Parse(idStr)
+	userId, err := uuid.Parse(idStr)
 	fmt.Println(userId)
 
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 
-	accid, err := h.UseCase.CreateAccount(userId, h.conn)
+	accid, err := h.UseCase.CreateAccount(userId)
 	fmt.Println("handler account id", accid)
-	if err != nil{
+	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 	var account *domain.Account
-	account, err = h.UseCase.GetByAccountNo(accid, h.conn)
+	account, err = h.UseCase.GetByAccountNo(accid)
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 	respondWithJSON(w, http.StatusOK, account)
 }
 
-
 // http://localhost:3000/account/{accoundId}
-func (h *AccountHandler) GetByAccountNoHandler(w http.ResponseWriter, r *http.Request){
+func (h *AccountHandler) GetByAccountNoHandler(w http.ResponseWriter, r *http.Request) {
 	// get ID from url parameters
 	idStr := chi.URLParam(r, "accoundId")
 	accountId, err := uuid.Parse(idStr)
@@ -79,11 +74,10 @@ func (h *AccountHandler) GetByAccountNoHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		h.logger.Error("Failed to get account by ID at Handler layer", zap.Error(err))
-		return 
+		return
 	}
 
-
-	acc, err := h.UseCase.GetByAccountNo(accountId, h.conn)
+	acc, err := h.UseCase.GetByAccountNo(accountId)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
