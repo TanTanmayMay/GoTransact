@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -24,6 +25,23 @@ and user id to API will be int but internally we'll pass uuid
 Update:
 Done directly by using UUID and storing it in Database as VARCHAR(255)
 */
+
+// r.Get("/get/{userid}", userHandler.GetUserById)
+func validateUUIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uuidFromParam := chi.URLParam(r, "userid")
+
+		_, err := uuid.Parse(uuidFromParam)
+
+		if err != nil {
+			http.Error(w, "Invalid UUID", http.StatusBadRequest)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 
 	// initialize zap
@@ -90,17 +108,17 @@ func main() {
 	// user routes  -> Grouped Routing
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/register", userHandler.Register)
-		r.Get("/get/{userid}", userHandler.GetUserById)
+		r.With(validateUUIDMiddleware).Get("/get/{userid}", userHandler.GetUserById)
 		r.Get("/getall", userHandler.GetAllUsers)
 	})
 
 	// functionality routes
-	r.Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
-	r.Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
+	r.With(validateUUIDMiddleware).Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
+	r.With(validateUUIDMiddleware).Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
 
 	// account routes -> Grouped Routing
 	r.Route("/account", func(r chi.Router) {
-		r.Post("/create/{userid}", accountHandler.CreateAccountHandler)
+		r.With(validateUUIDMiddleware).Post("/create/{userid}", accountHandler.CreateAccountHandler)
 		r.Get("/get/{accoundId}", accountHandler.GetByAccountNoHandler)
 	})
 
