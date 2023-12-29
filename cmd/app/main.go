@@ -93,10 +93,10 @@ func main() {
 
 	// Initialize UseCase and Handler
 	// func NewAccountRepo(conn *pgx.Conn)
-	userRepo := repository.NewUserRepo(conn, logger)
-	accountRepo := repository.NewAccountRepo(conn, logger)
-	userUseCase := usecases.NewUserUseCase(userRepo, logger)
-	accountUseCase := usecases.NewAccountUseCase(accountRepo, logger)
+	userRepoFactory := repository.NewAtomicUserRepoFactory(conn, logger)
+	accountRepoFactory := repository.NewAtomicAccountRepoFactory(conn, logger)
+	userUseCase := usecases.NewUserUseCase(userRepoFactory, logger)
+	accountUseCase := usecases.NewAccountUseCase(accountRepoFactory, logger)
 	userHandler := handler.NewUserHandler(userUseCase, logger)
 	accountHandler := handler.NewAccountHandler(accountUseCase, logger)
 
@@ -127,8 +127,6 @@ func main() {
 	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
 	r.Get("/create/users/table", userHandler.CreateUsersTableHandler)
 	r.Get("/drop/users/table", userHandler.DropUserTableHandler)
-
-	logger.Info("Server listening on :8000")
 
 	port1, port2 := ":8000", ":8001"
 

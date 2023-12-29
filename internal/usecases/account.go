@@ -9,7 +9,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type AccountRepository interface {
+type AtomicAccountRepository interface {
+	Transactor
+
 	DropAccountsTable() error
 	CreateTable() error
 	GetByNo(accountNo uuid.UUID) (*domain.Account, error)
@@ -18,22 +20,40 @@ type AccountRepository interface {
 	GetAccByUserId(userid uuid.UUID) (*domain.Account, error)
 }
 
+type AtomicAccountRepositoryFactory func() AtomicAccountRepository
+
 type AccountUsecase struct {
-	repo   AccountRepository
-	logger *zap.Logger
+	newARepo AtomicAccountRepositoryFactory
+	logger   *zap.Logger
 }
 
-func NewAccountUseCase(reposi AccountRepository, logger *zap.Logger) *AccountUsecase {
+func NewAccountUseCase(accreposiFactory AtomicAccountRepositoryFactory, logger *zap.Logger) *AccountUsecase {
 	return &AccountUsecase{
-		repo:   reposi,
-		logger: logger,
+		newARepo: accreposiFactory,
+		logger:   logger,
 	}
 }
 
 func (a *AccountUsecase) DropAccountsTable() error {
-	err := a.repo.DropAccountsTable()
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
+
+	err := repo.DropAccountsTable()
 	if err != nil {
 		fmt.Println("Error while deleting account table")
+		return err
+	}
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
 		return err
 	}
 
@@ -41,15 +61,42 @@ func (a *AccountUsecase) DropAccountsTable() error {
 }
 
 func (a *AccountUsecase) CreateAccountTable() error {
-	err := a.repo.CreateTable()
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
+
+	err := repo.CreateTable()
 	if err != nil {
 		fmt.Println("Error while creating account table")
+		return err
+	}
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
 		return err
 	}
 
 	return nil
 }
 func (a *AccountUsecase) CreateAccount(userID uuid.UUID) (uuid.UUID, error) {
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
+
 	var newAccount domain.Account
 
 	newAccount.UserID = userID
@@ -59,39 +106,94 @@ func (a *AccountUsecase) CreateAccount(userID uuid.UUID) (uuid.UUID, error) {
 	fmt.Println("usecase account id", newAccount.AccountNo)
 
 	//err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
-	accid, err := a.repo.CreateAccount(&newAccount)
+	accid, err := repo.CreateAccount(&newAccount)
 	if err != nil {
 		log.Fatal(err)
 		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err
 	}
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
+		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err
+	}
+
 	return accid, nil
 }
 
 func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID) (*domain.Account, error) {
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return nil, err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
 	//account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
-	account, err := a.repo.GetByNo(accountNo)
+	account, err := repo.GetByNo(accountNo)
 	if err != nil {
 		log.Fatal(err)
+		return nil, err
+	}
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
 		return nil, err
 	}
 	return account, nil
 }
 
 func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (*domain.Account, error) {
-	account, err := a.repo.GetAccByUserId(userid)
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return nil, err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
+
+	account, err := repo.GetAccByUserId(userid)
 	if err != nil {
 		a.logger.Error("Could not Ftech account")
 		return nil, err
 	}
-	return account, err
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
+		return nil, err
+	}
+
+	return account, nil
 }
 
 func (a *AccountUsecase) GetAllAccounts() ([]domain.Account, error) {
+	repo := a.newARepo()
+
+	if err := repo.Begin(); err != nil {
+		a.logger.Error("Failed to Begin drop account table", zap.Error(err))
+		return nil, err
+	}
+
+	defer func() {
+		_ = repo.Rollback()
+	}()
+
 	//accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
-	accounts, err := a.repo.GetAll()
+	accounts, err := repo.GetAll()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	return accounts, err
+
+	if err := repo.Commit(); err != nil {
+		a.logger.Error("Failed to Commit delete account table", zap.Error(err))
+		return nil, err
+	}
+
+	return accounts, nil
 }

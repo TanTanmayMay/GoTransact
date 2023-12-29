@@ -4,26 +4,35 @@ import (
 	"context"
 	"fmt"
 	"rest1/internal/domain"
+	"rest1/internal/usecases"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
-
-type AccountRepo struct {
-	conn *pgxpool.Pool
-	logger *zap.Logger
+type AtomicAccountRepo struct {
+	*transactor
 }
 
-func NewAccountRepo(conn *pgxpool.Pool, logger *zap.Logger) *AccountRepo {
-	return &AccountRepo{
-		conn: conn,
-		logger: logger,
+var _ usecases.AtomicAccountRepository = (*AtomicAccountRepo)(nil)
+
+func NewAtomicAccountRepoFactory(conn *pgxpool.Pool, logger *zap.Logger) usecases.AtomicAccountRepositoryFactory {
+	return func() usecases.AtomicAccountRepository {
+		return &AtomicAccountRepo{
+			transactor: &transactor{
+				conn:   conn,
+				logger: logger,
+			},
+		}
 	}
 }
 
-func (a *AccountRepo) DropAccountsTable() error {
+func (a *AtomicAccountRepo) DropAccountsTable() error {
+	if a.tx == nil {
+		return ErrTransactionNotStarted
+	}
+
 	_, err := a.conn.Exec(context.Background(), "DROP TABLE accounts")
 
 	if err != nil {
@@ -34,19 +43,27 @@ func (a *AccountRepo) DropAccountsTable() error {
 	return nil
 }
 
-func (a *AccountRepo) CreateTable() error {
+func (a *AtomicAccountRepo) CreateTable() error {
+	if a.tx == nil {
+		return ErrTransactionNotStarted
+	}
+
 	_, err := a.conn.Exec(context.Background(), "CREATE TABLE accounts (accountno VARCHAR(255) PRIMARY KEY, userid VARCHAR (255) , balance FLOAT, minBalance FLOAT , CONSTRAINT constrain_fk FOREIGN KEY (userid) REFERENCES users(userid) );")
 	if err != nil {
 		a.logger.Error("Failed to create table in Database", zap.Error(err))
 		return err
 	}
 	return nil
-	
+
 }
 
-func (a *AccountRepo) GetByNo(accountNo uuid.UUID) (*domain.Account, error) {
+func (a *AtomicAccountRepo) GetByNo(accountNo uuid.UUID) (*domain.Account, error) {
+	if a.tx == nil {
+		return nil, ErrTransactionNotStarted
+	}
+
 	var account domain.Account
-	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance  FROM accounts WHERE accountno = $1", accountNo).Scan(&account.AccountNo, &account.UserID , &account.Balance, &account.MinBalance)
+	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance  FROM accounts WHERE accountno = $1", accountNo).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance)
 
 	if err != nil {
 		a.logger.Error("Failed to get account by ID from Database", zap.Error(err))
@@ -56,12 +73,16 @@ func (a *AccountRepo) GetByNo(accountNo uuid.UUID) (*domain.Account, error) {
 	return &account, nil
 }
 
-func (a *AccountRepo) CreateAccount(account *domain.Account) (uuid.UUID, error) {
-	fmt.Println("repository acc id", account.AccountNo)
-	fmt.Println("repository userid ", account.UserID)
-	fmt.Println("repository ", account.Balance)
-	fmt.Println("repository ", account.MinBalance)
-	_, err := a.conn.Exec(context.Background(), "INSERT INTO accounts (accountno, userid, balance, minBalance) VALUES($1, $2, $3 , $4)", account.AccountNo , account.UserID, account.Balance , account.MinBalance )
+func (a *AtomicAccountRepo) CreateAccount(account *domain.Account) (uuid.UUID, error) {
+	if a.tx == nil {
+		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), ErrTransactionNotStarted
+	}
+
+	// fmt.Println("repository acc id", account.AccountNo)
+	// fmt.Println("repository userid ", account.UserID)
+	// fmt.Println("repository ", account.Balance)
+	// fmt.Println("repository ", account.MinBalance)
+	_, err := a.conn.Exec(context.Background(), "INSERT INTO accounts (accountno, userid, balance, minBalance) VALUES($1, $2, $3 , $4)", account.AccountNo, account.UserID, account.Balance, account.MinBalance)
 	if err != nil {
 		a.logger.Error("Failed to create account in Database")
 		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err // Return the error
@@ -69,7 +90,8 @@ func (a *AccountRepo) CreateAccount(account *domain.Account) (uuid.UUID, error) 
 	return account.AccountNo, nil
 }
 
-func (a *AccountRepo) GetAll() ([]domain.Account, error) {
+func (a *AtomicAccountRepo) GetAll() ([]domain.Account, error) {
+
 	rows, err := a.conn.Query(context.Background(), "SELECT accountno, userid, balance, minBalance FROM accounts")
 	if err != nil {
 		a.logger.Error("Failed to get all accounts from Database", zap.Error(err))
@@ -80,7 +102,7 @@ func (a *AccountRepo) GetAll() ([]domain.Account, error) {
 	var accounts []domain.Account
 	for rows.Next() {
 		var account domain.Account
-		if err := rows.Scan(&account.AccountNo, &account.Balance, &account.MinBalance , &account.UserID); err != nil {
+		if err := rows.Scan(&account.AccountNo, &account.Balance, &account.MinBalance, &account.UserID); err != nil {
 			a.logger.Error("Failed to get account by ID from Database and append it to ds", zap.Error(err))
 			return nil, err
 		}
@@ -90,13 +112,12 @@ func (a *AccountRepo) GetAll() ([]domain.Account, error) {
 	return accounts, nil
 }
 
-
-func (a* AccountRepo) GetAccByUserId(userid uuid.UUID) (*domain.Account , error) {
+func (a *AtomicAccountRepo) GetAccByUserId(userid uuid.UUID) (*domain.Account, error) {
 	var account = domain.Account{}
 	fmt.Println("Repo userrrrid", userid)
 
 	// idstr := userid.String()
-	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance FROM accounts WHERE userid = $1", userid.String()).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance )
+	err := a.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minBalance FROM accounts WHERE userid = $1", userid.String()).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance)
 	fmt.Println("Repo AccountNumber ", account.AccountNo)
 	fmt.Println("Repo AccountUID ", account.UserID)
 	fmt.Println("Repo AccountBalan ", account.Balance)
@@ -107,4 +128,3 @@ func (a* AccountRepo) GetAccByUserId(userid uuid.UUID) (*domain.Account , error)
 	}
 	return &account, nil
 }
-
