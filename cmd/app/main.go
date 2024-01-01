@@ -94,9 +94,9 @@ func main() {
 	// Initialize UseCase and Handler
 	// func NewAccountRepo(conn *pgx.Conn)
 	userRepo := repository.NewUserRepo(conn, logger)
-	accountRepo := repository.NewAccountRepo(conn, logger)
+	atomicAccountRepo := repository.NewAtomicAccountRepo(conn, logger)
 	userUseCase := usecases.NewUserUseCase(userRepo, logger)
-	accountUseCase := usecases.NewAccountUseCase(accountRepo, logger)
+	accountUseCase := usecases.NewAccountUsecase(atomicAccountRepo, logger)
 	userHandler := handler.NewUserHandler(userUseCase, logger)
 	accountHandler := handler.NewAccountHandler(accountUseCase, logger)
 
