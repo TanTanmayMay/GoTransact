@@ -9,6 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// Define AtomicAccountOperation interface
+type AtomicAccountOperation func(AccountRepository) error
+
+// Define AtomicAccountRepository interface
+type AtomicAccountRepository interface {
+	Execute(AtomicAccountOperation) error
+}
+
+// Define AccountRepository interface
 type AccountRepository interface {
 	DropAccountsTable() error
 	CreateTable() error
@@ -18,21 +27,26 @@ type AccountRepository interface {
 	GetAccByUserId(userid uuid.UUID) (*domain.Account, error)
 }
 
+// Define AccountUsecase struct
 type AccountUsecase struct {
-	repo   AccountRepository
-	logger *zap.Logger
+	atomicRepo AtomicAccountRepository
+	logger     *zap.Logger
 }
 
-func NewAccountUseCase(reposi AccountRepository, logger *zap.Logger) *AccountUsecase {
+// Define constructor
+func NewAccountUsecase(atomicRepo AtomicAccountRepository, logger *zap.Logger) *AccountUsecase {
 	return &AccountUsecase{
-		repo:   reposi,
-		logger: logger,
+		atomicRepo: atomicRepo,
+		logger:     logger,
 	}
 }
 
 func (a *AccountUsecase) DropAccountsTable() error {
-	err := a.repo.DropAccountsTable()
-	if err != nil {
+	dropTableAtomicOp := func(repo AccountRepository) error {
+		return repo.DropAccountsTable()
+	}
+
+	if err := a.atomicRepo.Execute(dropTableAtomicOp); err != nil {
 		fmt.Println("Error while deleting account table")
 		return err
 	}
@@ -40,15 +54,21 @@ func (a *AccountUsecase) DropAccountsTable() error {
 	return nil
 }
 
+// Implement CreateAccountTable method
 func (a *AccountUsecase) CreateAccountTable() error {
-	err := a.repo.CreateTable()
-	if err != nil {
+	createTableAtomicOp := func(repo AccountRepository) error {
+		return repo.CreateTable()
+	}
+
+	if err := a.atomicRepo.Execute(createTableAtomicOp); err != nil {
 		fmt.Println("Error while creating account table")
 		return err
 	}
 
 	return nil
 }
+
+// Implement CreateAccount method
 func (a *AccountUsecase) CreateAccount(userID uuid.UUID) (uuid.UUID, error) {
 	var newAccount domain.Account
 
@@ -58,40 +78,70 @@ func (a *AccountUsecase) CreateAccount(userID uuid.UUID) (uuid.UUID, error) {
 	newAccount.AccountNo = uuid.New()
 	fmt.Println("usecase account id", newAccount.AccountNo)
 
-	//err := repository.NewAccountRepo(conn , a.logger).CreateAccount(&newAccount)
-	accid, err := a.repo.CreateAccount(&newAccount)
-	if err != nil {
+	createAccountAtomicOp := func(repo AccountRepository) error {
+		_, err := repo.CreateAccount(&newAccount)
+		return err
+	}
+
+	if err := a.atomicRepo.Execute(createAccountAtomicOp); err != nil {
 		log.Fatal(err)
 		return uuid.MustParse("00000000-0000-0000-0000-000000000000"), err
 	}
-	return accid, nil
+
+	return newAccount.AccountNo, nil
 }
 
+// Implement GetByAccountNo method
 func (a *AccountUsecase) GetByAccountNo(accountNo uuid.UUID) (*domain.Account, error) {
-	//account , err := repository.NewAccountRepo(conn , a.logger).GetByNo(accountNo)
-	account, err := a.repo.GetByNo(accountNo)
-	if err != nil {
+	var account *domain.Account
+	getByAccountNoAtomicOp := func(repo AccountRepository) error {
+		var err error
+		account, err = repo.GetByNo(accountNo)
+		if err != nil {
+			return err
+		}
+		// Perform additional business logic or validations if needed
+		return nil
+	}
+
+	if err := a.atomicRepo.Execute(getByAccountNoAtomicOp); err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
+
 	return account, nil
 }
 
+// Implement GetAccountByUserID method
 func (a *AccountUsecase) GetAccountByUserID(userid uuid.UUID) (*domain.Account, error) {
-	account, err := a.repo.GetAccByUserId(userid)
-	if err != nil {
-		a.logger.Error("Could not Ftech account")
+	var account *domain.Account
+	getAccountByUserIDAtomicOp := func(repo AccountRepository) error {
+		var err error
+		account, err = repo.GetAccByUserId(userid)
+		return err
+	}
+
+	if err := a.atomicRepo.Execute(getAccountByUserIDAtomicOp); err != nil {
+		a.logger.Error("Could not fetch account")
 		return nil, err
 	}
-	return account, err
+
+	return account, nil
 }
 
+// Implement GetAllAccounts method
 func (a *AccountUsecase) GetAllAccounts() ([]domain.Account, error) {
-	//accounts , err := repository.NewAccountRepo(conn , a.logger).GetAll()
-	accounts, err := a.repo.GetAll()
-	if err != nil {
+	var accounts []domain.Account
+	getAllAccountsAtomicOp := func(repo AccountRepository) error {
+		var err error
+		accounts, err = repo.GetAll()
+		return err
+	}
+
+	if err := a.atomicRepo.Execute(getAllAccountsAtomicOp); err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	return accounts, err
+
+	return accounts, nil
 }

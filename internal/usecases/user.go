@@ -7,7 +7,14 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows/svc"
 )
+
+type AtomicOperation func(UserRepository) error
+
+type AtomicUserRepository interface {
+	Execute(AtomicOperation) error
+}
 
 type UserRepository interface {
 	DropUserTable() error
@@ -21,9 +28,8 @@ type UserRepository interface {
 }
 
 type UserUsecase struct {
-	repo   UserRepository
+	AtomicUserRepo AtomicUserRepository
 	logger *zap.Logger
-	AccountUsecase
 }
 
 /*
@@ -35,26 +41,38 @@ func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn) *Accou
 }
 */
 
-func NewUserUseCase(reposi UserRepository, logger *zap.Logger) *UserUsecase {
+func NewUserUseCase(reposi AtomicUserRepository, logger *zap.Logger) *UserUsecase {
 	return &UserUsecase{
-		repo:   reposi,
+		AtomicUserRepo:   reposi,
 		logger: logger,
 	}
 }
 
 func (a *UserUsecase) DropUserTable() error {
-	err := a.repo.DropUserTable()
-	if err != nil {
-		a.logger.Error("Failed to create user table", zap.Error(err))
+	drop := func (ur UserRepository) error {
+		err := ur.DropUserTable()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	
+	if err := a.AtomicUserRepo.Execute(drop); err != nil {
 		return err
 	}
 
 	return nil
 }
 func (a *UserUsecase) CreateUserTable() error {
-	err := a.repo.CreateUserTable()
-	if err != nil {
-		a.logger.Error("Failed to create user table", zap.Error(err))
+	create := func (ur UserRepository) error {
+		err := ur.CreateUserTable()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := a.AtomicUserRepo.Execute(create); err != nil {
 		return err
 	}
 
@@ -63,8 +81,14 @@ func (a *UserUsecase) CreateUserTable() error {
 
 func (a *UserUsecase) CreateUser(user *domain.User) error {
 	//err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
-	err := a.repo.CreateUser(user)
-	if err != nil {
+	createUsr := func (ur UserRepository) error {
+		err := ur.CreateUser()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := a.AtomicUserRepo.Execute(createUsr); err != nil {
 		return err
 	}
 
