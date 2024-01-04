@@ -1,16 +1,32 @@
 version: '3.9'
 
 services:
-  db:
+  postgres:
+    container_name: postgres
     image: postgres:alpine
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
+    env_file: 
+      - .env.development.local
     ports:
       - 5432:5432
     volumes:
       - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    container_name: migrate
+    image: liquibase/liquibase
+    command: update
+    volumes:
+      - ./migrations:/liquibase/changelog
+    env_file: 
+      - .env.development.local
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   server:
     container_name: go_server
@@ -21,6 +37,20 @@ services:
       - 8000:8000
     volumes:
       - ./:/go/src/bitglaze/test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one
+    ports:
+      - 16686:16686
+      - 4318:4318
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
 
 volumes:
   postgres-db:
