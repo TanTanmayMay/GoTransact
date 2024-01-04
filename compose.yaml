@@ -3,19 +3,23 @@ version: '3.9'
 services:
   postgres:
     container_name: postgres
-    image: postgres:alpine
+    image: postgres:16
     env_file: 
       - .env.development.local
+    # environment:
+    #   - POSTGRES_PASSWORD=nishant
+    #   - POSTGRES_DB=testdb
+    #   - POSTGRES_USER=nishant
     ports:
       - 5432:5432
     volumes:
       - postgres-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+    # healthcheck:
+    #   test: [`CMD-SHELL`, `pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER`]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+ 
   migrate:
     container_name: migrate
     image: liquibase/liquibase
@@ -24,33 +28,33 @@ services:
       - ./migrations:/liquibase/changelog
     env_file: 
       - .env.development.local
-    depends_on:
-      postgres:
-        condition: service_healthy
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
 
-  server:
-    container_name: go_server
-    image: cosmtrek/air:latest
-    working_dir: /go/src/bitglaze/test
-    command: air -c ./.air.toml
-    ports:
-      - 8000:8000
-    volumes:
-      - ./:/go/src/bitglaze/test
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+  # server:
+  #   container_name: go_server
+  #   image: cosmtrek/air:latest
+  #   working_dir: /go/src/bitglaze/test
+  #   command: air -c ./.air.toml
+  #   ports:
+  #     - 8000:8000
+  #   volumes:
+  #     - ./:/go/src/bitglaze/test
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     migrate:
+  #       condition: service_completed_successfully
 
-  jaeger:
-    container_name: jaeger
-    image: jaegertracing/all-in-one
-    ports:
-      - 16686:16686
-      - 4318:4318
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
+  # jaeger:
+  #   container_name: jaeger
+  #   image: jaegertracing/all-in-one
+  #   ports:
+  #     - 16686:16686
+  #     - 4318:4318
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
 
 volumes:
   postgres-db:
