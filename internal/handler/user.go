@@ -2,11 +2,12 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	// "fmt"
 	"net/http"
 	"rest1/internal/domain"
 	"rest1/internal/usecases"
-	"strconv"
+
+	// "strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -54,22 +55,16 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	*/
+
 	if err := render.Decode(r, &user); err != nil {
 		http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
 		return
 	}
+
 	user.ID = uuid.New()
-	// newAccId, err := h.UseCase.CreateAccount(user.ID, h.conn)
-	// if err != nil {
-	// 	h.logger.Error("Error while creating account by user.go handler")
-	// 	return
-	// }
 
 	err := h.UseCase.CreateUser(&user)
 	if err != nil {
-		// http.Error(w, "Error while creating user", http.StatusInternalServerError)
-		// h.logger.Error("Error while creating user at creatUser", zap.Error(err))
-		// return
 		respondWithJSON(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -112,6 +107,7 @@ func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request) {
 
 // withdraw money
 // localhost:3000/
+/*
 func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		//Tanmay
@@ -122,7 +118,7 @@ func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
 
 		var req
 		err := json.NewDecoder(r.Body).Decode(&user)
-	*/
+*/ /*
 	idStr := chi.URLParam(r, "userid")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -187,6 +183,7 @@ func (h *UserHandler) DepositHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 }
+*/
 
 // Utitlity function to response in JSON
 func respondWithJSON(w http.ResponseWriter, statusCode int, data interface{}) {

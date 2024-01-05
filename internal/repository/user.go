@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"rest1/internal/domain"
+	"rest1/internal/usecases"
 	"sync"
 
 	"github.com/google/uuid"
@@ -13,42 +14,58 @@ import (
 	"go.uber.org/zap"
 )
 
-type UserRepo struct {
+type AtomicUserRepository struct {
 	conn   *pgxpool.Pool
 	logger *zap.Logger
 }
 
-func NewUserRepo(conn *pgxpool.Pool, logger *zap.Logger) *UserRepo {
-	return &UserRepo{
+var _ usecases.AtomicUserRepository = (*AtomicUserRepository)(nil)
+
+// NewAtomicUserRepo instantiates a new AtomicUserRepository using the pgxpool provided.
+func NewAtomicUserRepo(conn *pgxpool.Pool, logger *zap.Logger) *AtomicUserRepository {
+	return &AtomicUserRepository{
 		conn:   conn,
 		logger: logger,
 	}
 }
 
-func (u *UserRepo) DropUserTable() error {
-	_, err := u.conn.Exec(context.Background(), "DROP TABLE users;")
-	if err != nil {
-		u.logger.Error("Failed to create table in Database", zap.Error(err))
-		fmt.Println(err)
-	}
-	return nil
+// UserRepository satisfies usecase.UserRepository and uses *pgxpool.Pool directly.
+type UserRepository struct {
+	conn   *pgxpool.Pool
+	logger *zap.Logger
 }
-func (u *UserRepo) CreateUserTable() error {
-	_, err := u.conn.Exec(context.Background(), "CREATE TABLE users (userid varchar(255), name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(userid));")
+
+var _ usecases.UserRepository = (*UserRepository)(nil)
+
+func (ar *UserRepository) DropUserTable() error {
+	_, err := ar.conn.Exec(context.Background(), "DROP TABLE users;")
+
 	if err != nil {
-		u.logger.Error("Failed to create table in Database", zap.Error(err))
-		fmt.Println(err)
+		ar.logger.Error("Failed to drop user table", zap.Error(err))
+		return err
 	}
+
 	return nil
 }
 
-func (u *UserRepo) GetIndividual(idd uuid.UUID, wg *sync.WaitGroup, userChan chan<- domain.User) {
+func (ar *UserRepository) CreateUserTable() error {
+	_, err := ar.conn.Exec(context.Background(), "CREATE TABLE users (userid varchar(255), name VARCHAR ( 50 )  NOT NULL,password VARCHAR ( 50 ) NOT NULL, PRIMARY KEY(userid));")
+
+	if err != nil {
+		ar.logger.Error("Failed to create table in Database", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (ar *UserRepository) GetIndividual(idd uuid.UUID, wg *sync.WaitGroup, userChan chan<- domain.User) {
 	defer wg.Done()
 	var user domain.User
-	err := u.conn.QueryRow(context.Background(), "SELECT userid, name, password FROM users WHERE userid = $1", idd).Scan(&user.ID, &user.Name, &user.Password)
+	err := ar.conn.QueryRow(context.Background(), "SELECT userid, name, password FROM users WHERE userid = $1", idd).Scan(&user.ID, &user.Name, &user.Password)
 
 	if err != nil {
-		u.logger.Error("Failed to get account by ID from Database", zap.Error(err))
+		ar.logger.Error("Failed to get account by ID from Database", zap.Error(err))
 
 		return
 	}
@@ -56,8 +73,8 @@ func (u *UserRepo) GetIndividual(idd uuid.UUID, wg *sync.WaitGroup, userChan cha
 	userChan <- user
 }
 
-func (u *UserRepo) GetAll() ([]domain.User, error) {
-	rows, err := u.conn.Query(context.Background(), "SELECT userid FROM users")
+func (ar *UserRepository) GetAll() ([]domain.User, error) {
+	rows, err := ar.conn.Query(context.Background(), "SELECT userid FROM users")
 	if err != nil {
 		return nil, err
 	}
@@ -71,12 +88,12 @@ func (u *UserRepo) GetAll() ([]domain.User, error) {
 		var uidd uuid.UUID
 		err := rows.Scan(&uidd)
 		if err != nil {
-			u.logger.Error("Failed to scan user ID", zap.Error(err))
+			ar.logger.Error("Failed to scan user ID", zap.Error(err))
 			return nil, err
 		}
 
 		wg.Add(1)
-		go u.GetIndividual(uidd, &wg, userChan)
+		go ar.GetIndividual(uidd, &wg, userChan)
 	}
 
 	go func() {
@@ -91,12 +108,12 @@ func (u *UserRepo) GetAll() ([]domain.User, error) {
 	return users, nil
 }
 
-func (u *UserRepo) GetByID(id uuid.UUID) (*domain.User, error) {
+func (ar *UserRepository) GetByID(id uuid.UUID) (*domain.User, error) {
 	var user domain.User
-	err := u.conn.QueryRow(context.Background(), "SELECT userid, name, password FROM users WHERE userid = $1", id).Scan(&user.ID, &user.Name, &user.Password)
+	err := ar.conn.QueryRow(context.Background(), "SELECT userid, name, password FROM users WHERE userid = $1", id).Scan(&user.ID, &user.Name, &user.Password)
 
 	if err != nil {
-		u.logger.Error("Failed to get account by ID from Database", zap.Error(err))
+		ar.logger.Error("Failed to get account by ID from Database", zap.Error(err))
 
 		return nil, err
 	}
@@ -104,7 +121,7 @@ func (u *UserRepo) GetByID(id uuid.UUID) (*domain.User, error) {
 	return &user, nil
 }
 
-func (u *UserRepo) CreateUser(user *domain.User) error {
+func (ar *UserRepository) CreateUser(user *domain.User) error {
 
 	// Added a Check on Password before Creating the User
 	lenght := len(user.Password)
@@ -112,7 +129,7 @@ func (u *UserRepo) CreateUser(user *domain.User) error {
 		return errors.New("Length of Password is Short")
 	}
 
-	_, err := u.conn.Exec(context.Background(), "INSERT INTO users(userid , name, password) VALUES($1, $2, $3)", user.ID, user.Name, user.Password)
+	_, err := ar.conn.Exec(context.Background(), "INSERT INTO users(userid , name, password) VALUES($1, $2, $3)", user.ID, user.Name, user.Password)
 	if err != nil {
 		return err
 	}
@@ -120,17 +137,17 @@ func (u *UserRepo) CreateUser(user *domain.User) error {
 	return nil
 }
 
-func (u *UserRepo) Withdraw(account *domain.Account, amount int) error {
+func (ar *UserRepository) Withdraw(account *domain.Account, amount int) error {
 	qry := "UPDATE accounts SET accounts.balance = (accounts.balance - $1) WHERE accounts.userid = $2"
-	_, err := u.conn.Exec(context.Background(), qry, amount, account.UserID)
+	_, err := ar.conn.Exec(context.Background(), qry, amount, account.UserID)
 	if err != nil {
-		u.logger.Error("Failed to withdraw from account", zap.Error(err))
+		ar.logger.Error("Failed to withdraw from account", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
-func (u *UserRepo) Deposit(account *domain.Account, amount int) error {
+func (ar *UserRepository) Deposit(account *domain.Account, amount int) error {
 	/*
 		UPDATE product
 		SET net_price = price - price * discount
@@ -138,10 +155,36 @@ func (u *UserRepo) Deposit(account *domain.Account, amount int) error {
 		WHERE product.segment_id = product_segment.id;
 	*/
 	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE userid = $2"
-	_, err := u.conn.Exec(context.Background(), qry, amount, account.UserID)
+	_, err := ar.conn.Exec(context.Background(), qry, amount, account.UserID)
 	if err != nil {
-		u.logger.Error("Failed to Deposit in Account", zap.Error(err))
+		ar.logger.Error("Failed to Deposit in Account", zap.Error(err))
 		return err
 	}
+	return nil
+}
+
+func (ar *AtomicUserRepository) Execute(op usecases.AtomicUserOperation) error {
+	tx, err := ar.conn.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
+	// Create a new single-use AccountRepository backed by the transaction.
+	userRepoWithTransaction := UserRepository{
+		conn:   ar.conn,
+		logger: ar.logger,
+	}
+
+	// Perform the AtomicAccountOperation using the AccountRepository.
+	if err := op(&userRepoWithTransaction); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
+		return err
+	}
+
 	return nil
 }

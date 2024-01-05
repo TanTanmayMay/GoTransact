@@ -27,6 +27,8 @@ Done directly by using UUID and storing it in Database as VARCHAR(255)
 */
 
 // r.Get("/get/{userid}", userHandler.GetUserById)
+
+// middleware for validating uuid we get from URL parameters.
 func validateUUIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidFromParam := chi.URLParam(r, "userid")
@@ -82,6 +84,7 @@ func main() {
 		logger.Fatal("Error connecting to PostgreSQL", zap.Error(err))
 	}
 	defer conn.Close()
+
 	// Check the connection
 	err = conn.Ping(context.Background())
 	if err != nil {
@@ -91,11 +94,10 @@ func main() {
 
 	r := chi.NewRouter()
 
-	// Initialize UseCase and Handler
-	// func NewAccountRepo(conn *pgx.Conn)
-	userRepo := repository.NewUserRepo(conn, logger)
+	// Initialize UseCase, Handler, Repository(Short Lived)
+	atomicUserRepo := repository.NewAtomicUserRepo(conn, logger)
 	atomicAccountRepo := repository.NewAtomicAccountRepo(conn, logger)
-	userUseCase := usecases.NewUserUseCase(userRepo, logger)
+	userUseCase := usecases.NewUserUseCase(atomicUserRepo, logger)
 	accountUseCase := usecases.NewAccountUsecase(atomicAccountRepo, logger)
 	userHandler := handler.NewUserHandler(userUseCase, logger)
 	accountHandler := handler.NewAccountHandler(accountUseCase, logger)
@@ -112,9 +114,9 @@ func main() {
 		r.Get("/getall", userHandler.GetAllUsers)
 	})
 
-	// functionality routes
-	// r.With(validateUUIDMiddleware).Put("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler) // TODO
-	// r.With(validateUUIDMiddleware).Put("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)   //TODO
+	/*
+		[TODO] -> Defining Withdraw and Deposit Routes
+	*/
 
 	// account routes -> Grouped Routing
 	r.Route("/account", func(r chi.Router) {
@@ -127,8 +129,6 @@ func main() {
 	r.Get("/create/account/table", accountHandler.CreateAccountTableHandler)
 	r.Get("/create/users/table", userHandler.CreateUsersTableHandler)
 	r.Get("/drop/users/table", userHandler.DropUserTableHandler)
-
-	logger.Info("Server listening on :8000")
 
 	port1, port2 := ":8000", ":8001"
 

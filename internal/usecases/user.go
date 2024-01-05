@@ -7,13 +7,12 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"golang.org/x/sys/windows/svc"
 )
 
-type AtomicOperation func(UserRepository) error
+type AtomicUserOperation func(UserRepository) error
 
 type AtomicUserRepository interface {
-	Execute(AtomicOperation) error
+	Execute(AtomicUserOperation) error
 }
 
 type UserRepository interface {
@@ -28,51 +27,37 @@ type UserRepository interface {
 }
 
 type UserUsecase struct {
-	AtomicUserRepo AtomicUserRepository
-	logger *zap.Logger
+	atomicRepo AtomicUserRepository
+	logger     *zap.Logger
 }
-
-/*
-func NewAccountHandler(useCase *usecases.AccountUsecase , conn *pgx.Conn) *AccountHandler{
-	return &AccountHandler{
-		UseCase: useCase,
-		conn: conn,
-	}
-}
-*/
 
 func NewUserUseCase(reposi AtomicUserRepository, logger *zap.Logger) *UserUsecase {
 	return &UserUsecase{
-		AtomicUserRepo:   reposi,
-		logger: logger,
+		atomicRepo: reposi,
+		logger:     logger,
 	}
 }
 
 func (a *UserUsecase) DropUserTable() error {
-	drop := func (ur UserRepository) error {
-		err := ur.DropUserTable()
-		if err != nil {
-			return err
-		}
-		return nil
+	dropTableAtomicOp := func(repo UserRepository) error {
+		return repo.DropUserTable()
 	}
-	
-	if err := a.AtomicUserRepo.Execute(drop); err != nil {
+
+	if err := a.atomicRepo.Execute(dropTableAtomicOp); err != nil {
+		fmt.Println("Error while deleting user table")
 		return err
 	}
 
 	return nil
 }
+
 func (a *UserUsecase) CreateUserTable() error {
-	create := func (ur UserRepository) error {
-		err := ur.CreateUserTable()
-		if err != nil {
-			return err
-		}
-		return nil
+	createTableAtomicOp := func(repo UserRepository) error {
+		return repo.CreateUserTable()
 	}
 
-	if err := a.AtomicUserRepo.Execute(create); err != nil {
+	if err := a.atomicRepo.Execute(createTableAtomicOp); err != nil {
+		fmt.Println("Error while creating account table")
 		return err
 	}
 
@@ -81,14 +66,14 @@ func (a *UserUsecase) CreateUserTable() error {
 
 func (a *UserUsecase) CreateUser(user *domain.User) error {
 	//err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
-	createUsr := func (ur UserRepository) error {
-		err := ur.CreateUser()
-		if err != nil {
-			return err
-		}
-		return nil
+	createAccountAtomicOp := func(repo UserRepository) error {
+		err := repo.CreateUser(user)
+		return err
 	}
-	if err := a.AtomicUserRepo.Execute(createUsr); err != nil {
+
+	if err := a.atomicRepo.Execute(createAccountAtomicOp); err != nil {
+		fmt.Println("Error while creating User")
+
 		return err
 	}
 
@@ -96,26 +81,45 @@ func (a *UserUsecase) CreateUser(user *domain.User) error {
 }
 
 func (a *UserUsecase) GetUserById(id uuid.UUID) (*domain.User, error) {
+	var user *domain.User
 	//user, err := repository.NewUserRepo(conn , a.logger).GetByID(id)
-	user, err := a.repo.GetByID(id)
-	if err != nil {
-		a.logger.Error("Error performing user operation get account by id", zap.Error(err))
+	getByiD := func(repo UserRepository) error {
+		var err error
+		user, err = repo.GetByID(id)
+		if err != nil {
+			return err
+		}
+		// Perform additional business logic or validations if needed
+		return nil
+	}
+
+	if err := a.atomicRepo.Execute(getByiD); err != nil {
+		// log.Fatal(err)
 		return nil, err
 	}
-	return user, err
+	return user, nil
 }
 
 func (a *UserUsecase) GetAll() ([]domain.User, error) {
-	// var userList []domain.User
+	var userList []domain.User
 	//userList, err := repository.NewUserRepo(conn , a.logger).GetAll()
-	userList, err := a.repo.GetAll()
-	if err != nil {
-		a.logger.Error("Error performing user operation get all accounts", zap.Error(err))
+	getAll := func(repo UserRepository) error {
+		var err error
+		userList, err = repo.GetAll()
+		if err != nil {
+			return err
+		}
+		// Perform additional business logic or validations if needed
+		return nil
+	}
+	if err := a.atomicRepo.Execute(getAll); err != nil {
+		// log.Fatal(err)
 		return nil, err
 	}
 	return userList, nil
 }
 
+/*
 func (a *UserUsecase) Withdraw(user *domain.User, amount int) error {
 	// check if minBalance violated
 	account, err := a.AccountUsecase.repo.GetAccByUserId(user.ID)
@@ -145,3 +149,4 @@ func (a *UserUsecase) Deposit(user *domain.User, amount int) error {
 	}
 	return nil
 }
+*/

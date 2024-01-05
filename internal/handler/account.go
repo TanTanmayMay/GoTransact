@@ -22,6 +22,8 @@ func NewAccountHandler(useCase *usecases.AccountUsecase, logger *zap.Logger) *Ac
 		logger:  logger,
 	}
 }
+
+// It is an utility route for data migration...Not frequently used by users
 func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http.Request) {
 	err := h.UseCase.DropAccountsTable()
 
@@ -31,6 +33,7 @@ func (h *AccountHandler) DropAccountsTableHandler(w http.ResponseWriter, r *http
 
 	respondWithJSON(w, http.StatusOK, nil)
 }
+
 func (h *AccountHandler) CreateAccountTableHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := h.UseCase.CreateAccountTable()

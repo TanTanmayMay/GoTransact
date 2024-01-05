@@ -27,7 +27,7 @@ func NewAtomicAccountRepo(conn *pgxpool.Pool, logger *zap.Logger) *AtomicAccount
 	}
 }
 
-// AccountRepository satisfies class.Repository and uses *pgxpool.Pool directly.
+// AccountRepository satisfies usecase.AccountRepository and uses *pgxpool.Pool directly.
 type AccountRepository struct {
 	conn   *pgxpool.Pool
 	logger *zap.Logger
