@@ -7,7 +7,7 @@ The contents of the file are as follows:
 
 -----------------------------[START of env file]--------------------------------  
 
-POSTGRES_PASSWORD=secret  
+POSTGRES_PASSWORD=secret
 POSTGRES_DB=testdb  
 POSTGRES_USER=nishant  
 
