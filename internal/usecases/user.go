@@ -22,8 +22,8 @@ type UserRepository interface {
 	GetAll() ([]domain.User, error)
 	GetByID(id uuid.UUID) (*domain.User, error)
 	CreateUser(user *domain.User) error
-	Deposit(account *domain.Account, amount int) error
-	Withdraw(account *domain.Account, amount int) error
+	Deposit(user *domain.User, amount int) error
+	Withdraw(user *domain.User, amount int) error
 }
 
 type UserUsecase struct {
@@ -65,7 +65,6 @@ func (a *UserUsecase) CreateUserTable() error {
 }
 
 func (a *UserUsecase) CreateUser(user *domain.User) error {
-	//err := repository.NewUserRepo(conn , a.logger).CreateUser(user)
 	createAccountAtomicOp := func(repo UserRepository) error {
 		err := repo.CreateUser(user)
 		return err
@@ -73,7 +72,6 @@ func (a *UserUsecase) CreateUser(user *domain.User) error {
 
 	if err := a.atomicRepo.Execute(createAccountAtomicOp); err != nil {
 		fmt.Println("Error while creating User")
-
 		return err
 	}
 
@@ -82,19 +80,17 @@ func (a *UserUsecase) CreateUser(user *domain.User) error {
 
 func (a *UserUsecase) GetUserById(id uuid.UUID) (*domain.User, error) {
 	var user *domain.User
-	//user, err := repository.NewUserRepo(conn , a.logger).GetByID(id)
 	getByiD := func(repo UserRepository) error {
 		var err error
 		user, err = repo.GetByID(id)
 		if err != nil {
 			return err
 		}
-		// Perform additional business logic or validations if needed
 		return nil
 	}
 
 	if err := a.atomicRepo.Execute(getByiD); err != nil {
-		// log.Fatal(err)
+		a.logger.Error("Failed to get user by id from db", zap.Error(err))
 		return nil, err
 	}
 	return user, nil
@@ -109,44 +105,41 @@ func (a *UserUsecase) GetAll() ([]domain.User, error) {
 		if err != nil {
 			return err
 		}
-		// Perform additional business logic or validations if needed
 		return nil
 	}
 	if err := a.atomicRepo.Execute(getAll); err != nil {
-		// log.Fatal(err)
+		a.logger.Error("Failed to GetAll users from database", zap.Error(err))
 		return nil, err
 	}
 	return userList, nil
 }
 
-/*
 func (a *UserUsecase) Withdraw(user *domain.User, amount int) error {
-	// check if minBalance violated
-	account, err := a.AccountUsecase.repo.GetAccByUserId(user.ID)
-	// account, err := a.repo.GetByAccountNo(user.AccountNo)
-	if account.Balance-float64(amount) < account.MinBalance {
-		a.logger.Error("Error performing user operation get withdrawal due to min balance violation", zap.Error(err))
-		return nil //Custom Error possible ??
-
+	withdraw := func(repo UserRepository) error {
+		err := repo.Withdraw(user, amount)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-	//err = repository.NewUserRepo(conn , a.logger).Withdraw(user, amount)
-	err = a.repo.Withdraw(account, amount)
-	if err != nil {
-		fmt.Println(err)
+	if err := a.atomicRepo.Execute(withdraw); err != nil {
+		a.logger.Error("Failed to Withdraw the given amount", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
 func (a *UserUsecase) Deposit(user *domain.User, amount int) error {
-	//err := repository.NewUserRepo(conn , a.logger).Deposit(user , amount);
-	account, err := a.AccountUsecase.repo.GetAccByUserId(user.ID)
-	fmt.Println("usecases accountbyuserid", account.AccountNo)
-	err = a.repo.Deposit(account, amount)
-	if err != nil {
-		a.logger.Error("Error performing user operation desposit ", zap.Error(err))
+	withdraw := func(repo UserRepository) error {
+		err := repo.Deposit(user, amount)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := a.atomicRepo.Execute(withdraw); err != nil {
+		a.logger.Error("Failed to Deposit the given amount", zap.Error(err))
 		return err
 	}
 	return nil
 }
-*/

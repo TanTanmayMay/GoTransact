@@ -2,12 +2,12 @@ package handler
 
 import (
 	"encoding/json"
-	// "fmt"
+	"fmt"
 	"net/http"
 	"rest1/internal/domain"
 	"rest1/internal/usecases"
 
-	// "strconv"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -107,7 +107,7 @@ func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request) {
 
 // withdraw money
 // localhost:3000/
-/*
+
 func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		//Tanmay
@@ -118,7 +118,7 @@ func (h *UserHandler) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
 
 		var req
 		err := json.NewDecoder(r.Body).Decode(&user)
-*/ /*
+	*/
 	idStr := chi.URLParam(r, "userid")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -183,7 +183,6 @@ func (h *UserHandler) DepositHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusBadRequest, err)
 	}
 }
-*/
 
 // Utitlity function to response in JSON
 func respondWithJSON(w http.ResponseWriter, statusCode int, data interface{}) {

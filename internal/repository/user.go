@@ -137,9 +137,16 @@ func (ar *UserRepository) CreateUser(user *domain.User) error {
 	return nil
 }
 
-func (ar *UserRepository) Withdraw(account *domain.Account, amount int) error {
+func (ar *UserRepository) Withdraw(user *domain.User, amount int) error {
+	var account domain.Account
+	err := ar.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minbalance FROM accounts WHERE userid = $1", user.ID).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance)
+
+	// First check if the given withdraw is possible or not
+	if account.Balance-float64(amount) < account.MinBalance {
+		return errors.New("Can't Withdraw as terms are violated")
+	}
 	qry := "UPDATE accounts SET accounts.balance = (accounts.balance - $1) WHERE accounts.userid = $2"
-	_, err := ar.conn.Exec(context.Background(), qry, amount, account.UserID)
+	_, err = ar.conn.Exec(context.Background(), qry, amount, account.UserID)
 	if err != nil {
 		ar.logger.Error("Failed to withdraw from account", zap.Error(err))
 		return err
@@ -147,17 +154,20 @@ func (ar *UserRepository) Withdraw(account *domain.Account, amount int) error {
 	return nil
 }
 
-func (ar *UserRepository) Deposit(account *domain.Account, amount int) error {
+func (ar *UserRepository) Deposit(user *domain.User, amount int) error {
 	/*
 		UPDATE product
 		SET net_price = price - price * discount
 		FROM product_segment
 		WHERE product.segment_id = product_segment.id;
 	*/
-	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE userid = $2"
-	_, err := ar.conn.Exec(context.Background(), qry, amount, account.UserID)
+	var account domain.Account
+	err := ar.conn.QueryRow(context.Background(), "SELECT accountno, userid, balance, minbalance FROM accounts WHERE userid = $1", user.ID).Scan(&account.AccountNo, &account.UserID, &account.Balance, &account.MinBalance)
+
+	qry := "UPDATE accounts SET accounts.balance = (accounts.balance + $1) WHERE accounts.userid = $2"
+	_, err = ar.conn.Exec(context.Background(), qry, amount, account.UserID)
 	if err != nil {
-		ar.logger.Error("Failed to Deposit in Account", zap.Error(err))
+		ar.logger.Error("Failed to deposit into account", zap.Error(err))
 		return err
 	}
 	return nil

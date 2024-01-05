@@ -114,9 +114,8 @@ func main() {
 		r.Get("/getall", userHandler.GetAllUsers)
 	})
 
-	/*
-		[TODO] -> Defining Withdraw and Deposit Routes
-	*/
+	r.With(validateUUIDMiddleware).Post("/withdraw/{userid}/amount/{amount}", userHandler.WithdrawHandler)
+	r.With(validateUUIDMiddleware).Post("/deposit/{userid}/amount/{amount}", userHandler.DepositHandler)
 
 	// account routes -> Grouped Routing
 	r.Route("/account", func(r chi.Router) {
